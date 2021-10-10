@@ -1,0 +1,13 @@
+# Target labels
+ mconf-idf
+# Source files and their labels
+/home/caleb/projects/skyhook_controller/.pio/build/esp32doit-devkit-v1/bootloader/CMakeFiles/mconf-idf
+/home/caleb/projects/skyhook_controller/.pio/build/esp32doit-devkit-v1/bootloader/CMakeFiles/mconf-idf.rule
+/home/caleb/projects/skyhook_controller/.pio/build/esp32doit-devkit-v1/bootloader/CMakeFiles/mconf-idf-complete.rule
+/home/caleb/projects/skyhook_controller/.pio/build/esp32doit-devkit-v1/bootloader/mconf-idf-prefix/src/mconf-idf-stamp/mconf-idf-install.rule
+/home/caleb/projects/skyhook_controller/.pio/build/esp32doit-devkit-v1/bootloader/mconf-idf-prefix/src/mconf-idf-stamp/mconf-idf-mkdir.rule
+/home/caleb/projects/skyhook_controller/.pio/build/esp32doit-devkit-v1/bootloader/mconf-idf-prefix/src/mconf-idf-stamp/mconf-idf-download.rule
+/home/caleb/projects/skyhook_controller/.pio/build/esp32doit-devkit-v1/bootloader/mconf-idf-prefix/src/mconf-idf-stamp/mconf-idf-update.rule
+/home/caleb/projects/skyhook_controller/.pio/build/esp32doit-devkit-v1/bootloader/mconf-idf-prefix/src/mconf-idf-stamp/mconf-idf-patch.rule
+/home/caleb/projects/skyhook_controller/.pio/build/esp32doit-devkit-v1/bootloader/mconf-idf-prefix/src/mconf-idf-stamp/mconf-idf-configure.rule
+/home/caleb/projects/skyhook_controller/.pio/build/esp32doit-devkit-v1/bootloader/mconf-idf-prefix/src/mconf-idf-stamp/mconf-idf-build.rule
