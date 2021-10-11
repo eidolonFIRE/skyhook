@@ -1,18 +1,20 @@
 {
     "project_name":       "bootloader",
-    "project_path":       "/home/caleb/.platformio/packages/framework-espidf/components/bootloader/subproject",
-    "build_dir":          "/home/caleb/projects/skyhook_controller/.pio/build/esp32doit-devkit-v1/bootloader",
-    "config_file":        "/home/caleb/projects/skyhook_controller/sdkconfig",
+    "project_path":       "/home/pi/.platformio/packages/framework-espidf/components/bootloader/subproject",
+    "build_dir":          "/home/pi/projects/skyhook/controller/.pio/build/esp32doit-devkit-v1/bootloader",
+    "config_file":        "/home/pi/projects/skyhook/controller/sdkconfig.esp32doit-devkit-v1",
     "config_defaults":    "",
     "app_elf":            "bootloader.elf",
     "app_bin":            "bootloader.bin",
-    "git_revision":       "HEAD-HASH-NOTFOUND",
+    "git_revision":       "4.3.0",
+    "target":             "esp32",
     "phy_data_partition": "",
-    "monitor_baud" : "115200",
+    "monitor_baud" :      "115200",
+    "monitor_toolprefix": "xtensa-esp32-elf-",
     "config_environment" : {
-        "COMPONENT_KCONFIGS" : "/home/caleb/.platformio/packages/framework-espidf/components/efuse/Kconfig;/home/caleb/.platformio/packages/framework-espidf/components/esp32/Kconfig;/home/caleb/.platformio/packages/framework-espidf/components/esp_common/Kconfig;/home/caleb/.platformio/packages/framework-espidf/components/log/Kconfig;/home/caleb/.platformio/packages/framework-espidf/components/spi_flash/Kconfig",
-        "COMPONENT_KCONFIGS_PROJBUILD" : "/home/caleb/.platformio/packages/framework-espidf/components/bootloader/Kconfig.projbuild;/home/caleb/.platformio/packages/framework-espidf/components/esptool_py/Kconfig.projbuild;/home/caleb/.platformio/packages/framework-espidf/components/partition_table/Kconfig.projbuild"
+        "COMPONENT_KCONFIGS" : "/home/pi/.platformio/packages/framework-espidf/components/efuse/Kconfig;/home/pi/.platformio/packages/framework-espidf/components/esp32/Kconfig;/home/pi/.platformio/packages/framework-espidf/components/esp_common/Kconfig;/home/pi/.platformio/packages/framework-espidf/components/esp_system/Kconfig;/home/pi/.platformio/packages/framework-espidf/components/log/Kconfig;/home/pi/.platformio/packages/framework-espidf/components/newlib/Kconfig;/home/pi/.platformio/packages/framework-espidf/components/spi_flash/Kconfig",
+        "COMPONENT_KCONFIGS_PROJBUILD" : "/home/pi/.platformio/packages/framework-espidf/components/bootloader/Kconfig.projbuild;/home/pi/.platformio/packages/framework-espidf/components/esptool_py/Kconfig.projbuild;/home/pi/.platformio/packages/framework-espidf/components/partition_table/Kconfig.projbuild"
     },
-    "build_components" : [ "bootloader", "bootloader_support", "efuse", "esp32", "esp_common", "esp_rom", "esptool_py", "log", "main", "micro-ecc", "partition_table", "soc", "spi_flash", "xtensa", "" ],
-    "build_component_paths" : [ "/home/caleb/.platformio/packages/framework-espidf/components/bootloader", "/home/caleb/.platformio/packages/framework-espidf/components/bootloader_support", "/home/caleb/.platformio/packages/framework-espidf/components/efuse", "/home/caleb/.platformio/packages/framework-espidf/components/esp32", "/home/caleb/.platformio/packages/framework-espidf/components/esp_common", "/home/caleb/.platformio/packages/framework-espidf/components/esp_rom", "/home/caleb/.platformio/packages/framework-espidf/components/esptool_py", "/home/caleb/.platformio/packages/framework-espidf/components/log", "/home/caleb/.platformio/packages/framework-espidf/components/bootloader/subproject/main", "/home/caleb/.platformio/packages/framework-espidf/components/bootloader/subproject/components/micro-ecc", "/home/caleb/.platformio/packages/framework-espidf/components/partition_table", "/home/caleb/.platformio/packages/framework-espidf/components/soc", "/home/caleb/.platformio/packages/framework-espidf/components/spi_flash", "/home/caleb/.platformio/packages/framework-espidf/components/xtensa", "" ]
+    "build_components" : [ "bootloader", "bootloader_support", "efuse", "esp32", "esp_common", "esp_hw_support", "esp_rom", "esp_system", "esptool_py", "hal", "log", "main", "micro-ecc", "newlib", "partition_table", "soc", "spi_flash", "xtensa", "" ],
+    "build_component_paths" : [ "/home/pi/.platformio/packages/framework-espidf/components/bootloader", "/home/pi/.platformio/packages/framework-espidf/components/bootloader_support", "/home/pi/.platformio/packages/framework-espidf/components/efuse", "/home/pi/.platformio/packages/framework-espidf/components/esp32", "/home/pi/.platformio/packages/framework-espidf/components/esp_common", "/home/pi/.platformio/packages/framework-espidf/components/esp_hw_support", "/home/pi/.platformio/packages/framework-espidf/components/esp_rom", "/home/pi/.platformio/packages/framework-espidf/components/esp_system", "/home/pi/.platformio/packages/framework-espidf/components/esptool_py", "/home/pi/.platformio/packages/framework-espidf/components/hal", "/home/pi/.platformio/packages/framework-espidf/components/log", "/home/pi/.platformio/packages/framework-espidf/components/bootloader/subproject/main", "/home/pi/.platformio/packages/framework-espidf/components/bootloader/subproject/components/micro-ecc", "/home/pi/.platformio/packages/framework-espidf/components/newlib", "/home/pi/.platformio/packages/framework-espidf/components/partition_table", "/home/pi/.platformio/packages/framework-espidf/components/soc", "/home/pi/.platformio/packages/framework-espidf/components/spi_flash", "/home/pi/.platformio/packages/framework-espidf/components/xtensa", "" ]
 }
