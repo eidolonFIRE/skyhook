@@ -9,10 +9,14 @@
 #include "soc/mcpwm_periph.h"
 #include "driver/pcnt.h"
 
+#include "driver/ledc.h"
+
+#include "esp_err.h"
 
 
-#define GPIO_PWM0A_OUT 15   //Set GPIO 15 as PWM0A
-#define GPIO_PWM0B_OUT 16   //Set GPIO 16 as PWM0B
+
+#define GPIO_PWM0A_OUT 26   //Set GPIO 15 as PWM0A
+#define GPIO_PWM0B_OUT 27   //Set GPIO 16 as PWM0B
 
 
 
@@ -32,6 +36,30 @@ void init() {
     pwm_config.counter_mode = MCPWM_UP_COUNTER;         //up counting mode
     pwm_config.duty_mode = MCPWM_DUTY_MODE_0;
     mcpwm_init(MOTOR_CTRL_MCPWM_UNIT, MOTOR_CTRL_MCPWM_TIMER, &pwm_config);    //Configure PWM0A & PWM0B with above settings
+    mcpwm_start(MOTOR_CTRL_MCPWM_UNIT, MOTOR_CTRL_MCPWM_TIMER);
+
+
+    // LED (stepper motor)
+    ledc_timer_config_t ledc_timer = {
+        .speed_mode       = LEDC_LOW_SPEED_MODE,
+        .timer_num        = LEDC_TIMER_0,
+        .duty_resolution  = LEDC_TIMER_2_BIT,
+        .freq_hz          = 10,
+        .clk_cfg          = LEDC_AUTO_CLK
+    };
+    ESP_ERROR_CHECK(ledc_timer_config(&ledc_timer));
+
+    // Prepare and then apply the LEDC PWM channel configuration
+    ledc_channel_config_t ledc_channel = {
+        .speed_mode     = LEDC_LOW_SPEED_MODE,
+        .channel        = LEDC_CHANNEL_0,
+        .timer_sel      = LEDC_TIMER_0,
+        .intr_type      = LEDC_INTR_DISABLE,
+        .gpio_num       = 25,
+        .duty           = 1, // Set duty to 50%
+        .hpoint         = 0
+    };
+    ESP_ERROR_CHECK(ledc_channel_config(&ledc_channel));
 }
 
 
@@ -55,12 +83,22 @@ void app_main() {
     init();
 
     float duty = 0.0;
+    int dir = 1;
     while (1) {
-        duty += 0.01;
-        if (duty > 1) {
-            duty = 0;
+        duty += dir;
+        if (duty > 100) {
+            duty = 100;
+            dir = -1;
+        }
+        if (duty < -100) {
+            duty = -100;
+            dir = 1;
         }
         brushed_motor_set_duty(duty);
-        vTaskDelay(50 / portTICK_PERIOD_MS);
+
+
+        ledc_set_freq(LEDC_LOW_SPEED_MODE, LEDC_TIMER_0, abs(duty));
+        printf("%2.2f", duty);
+        vTaskDelay(30 / portTICK_PERIOD_MS);
     }
 }
