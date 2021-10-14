@@ -10,6 +10,8 @@
 #include "driver/pcnt.h"
 
 #include "driver/ledc.h"
+#include "driver/gpio.h"
+
 
 #include "esp_err.h"
 
@@ -23,6 +25,9 @@
 #define MOTOR_CTRL_MCPWM_UNIT   MCPWM_UNIT_0
 #define MOTOR_CTRL_MCPWM_TIMER  MCPWM_TIMER_0
 
+#define GPIO_OUTPUT_IO_0    33
+// #define GPIO_OUTPUT_IO_1    19
+#define GPIO_OUTPUT_PIN_SEL  ((1ULL<<GPIO_OUTPUT_IO_0))// | (1ULL<<GPIO_OUTPUT_IO_1))
 
 
 void init() {
@@ -40,26 +45,65 @@ void init() {
 
 
     // LED (stepper motor)
-    ledc_timer_config_t ledc_timer = {
-        .speed_mode       = LEDC_LOW_SPEED_MODE,
+    ledc_timer_config_t ledc_timer_mtr = {
+        .speed_mode       = LEDC_HIGH_SPEED_MODE,
         .timer_num        = LEDC_TIMER_0,
-        .duty_resolution  = LEDC_TIMER_2_BIT,
-        .freq_hz          = 10,
+        .duty_resolution  = LEDC_TIMER_8_BIT,
+        .freq_hz          = 100,
         .clk_cfg          = LEDC_AUTO_CLK
     };
-    ESP_ERROR_CHECK(ledc_timer_config(&ledc_timer));
+    ESP_ERROR_CHECK(ledc_timer_config(&ledc_timer_mtr));
 
     // Prepare and then apply the LEDC PWM channel configuration
-    ledc_channel_config_t ledc_channel = {
-        .speed_mode     = LEDC_LOW_SPEED_MODE,
+    ledc_channel_config_t ledc_channel_mtr = {
+        .speed_mode     = LEDC_HIGH_SPEED_MODE,
         .channel        = LEDC_CHANNEL_0,
         .timer_sel      = LEDC_TIMER_0,
         .intr_type      = LEDC_INTR_DISABLE,
         .gpio_num       = 25,
-        .duty           = 1, // Set duty to 50%
+        .duty           = (1<<4), // Set duty to 50%
         .hpoint         = 0
     };
-    ESP_ERROR_CHECK(ledc_channel_config(&ledc_channel));
+    ESP_ERROR_CHECK(ledc_channel_config(&ledc_channel_mtr));
+
+
+    // LED (servo)
+    ledc_timer_config_t ledc_timer_servo = {
+        .speed_mode       = LEDC_HIGH_SPEED_MODE,
+        .timer_num        = LEDC_TIMER_1,
+        .duty_resolution  = LEDC_TIMER_12_BIT,
+        .freq_hz          = 50,
+        .clk_cfg          = LEDC_AUTO_CLK
+    };
+    ESP_ERROR_CHECK(ledc_timer_config(&ledc_timer_servo));
+
+    // Prepare and then apply the LEDC PWM channel configuration
+    ledc_channel_config_t ledc_channel_servo = {
+        .speed_mode     = LEDC_HIGH_SPEED_MODE,
+        .channel        = LEDC_CHANNEL_1,
+        .timer_sel      = LEDC_TIMER_1,
+        .intr_type      = LEDC_INTR_DISABLE,
+        .gpio_num       = 32,
+        .duty           = 0,
+        .hpoint         = 0
+    };
+    ESP_ERROR_CHECK(ledc_channel_config(&ledc_channel_servo));
+
+
+    // setup IO
+    gpio_config_t io_conf = {};
+    //disable interrupt
+    io_conf.intr_type = GPIO_INTR_DISABLE;
+    //set as output mode
+    io_conf.mode = GPIO_MODE_OUTPUT;
+    //bit mask of the pins that you want to set,e.g.GPIO18/19
+    io_conf.pin_bit_mask = GPIO_OUTPUT_PIN_SEL;
+    //disable pull-down mode
+    io_conf.pull_down_en = 0;
+    //disable pull-up mode
+    io_conf.pull_up_en = 0;
+    //configure GPIO with the given settings
+    gpio_config(&io_conf);
 }
 
 
@@ -96,9 +140,13 @@ void app_main() {
         }
         brushed_motor_set_duty(duty);
 
+        ledc_set_freq(LEDC_HIGH_SPEED_MODE, LEDC_TIMER_0, abs(duty * 15) + 10);
+        gpio_set_level(GPIO_OUTPUT_IO_0, duty > 0);
 
-        ledc_set_freq(LEDC_LOW_SPEED_MODE, LEDC_TIMER_0, abs(duty));
-        printf("%2.2f", duty);
-        vTaskDelay(30 / portTICK_PERIOD_MS);
+        ledc_set_duty(LEDC_HIGH_SPEED_MODE, LEDC_TIMER_1, 240 + duty / 1.5);
+        ledc_update_duty(LEDC_HIGH_SPEED_MODE, LEDC_CHANNEL_1);
+
+        // printf("%2.2f", duty);
+        vTaskDelay(20 / portTICK_PERIOD_MS);
     }
 }
