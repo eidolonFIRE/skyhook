@@ -1,4 +1,4 @@
-# Install script for directory: /home/pi/.platformio/packages/framework-espidf/components/idf_test
+# Install script for directory: /home/caleb/.platformio/packages/framework-espidf/components/idf_test
 
 # Set the install prefix
 if(NOT DEFINED CMAKE_INSTALL_PREFIX)

@@ -8,12 +8,10 @@
         {
             "name": "PlatformIO",
             "includePath": [
-                "/home/caleb/projects/skyhook/controller/include",
-                "/home/caleb/projects/skyhook/controller/src",
-                "/home/caleb/projects/skyhook/controller/.pio/libdeps/esp32doit-devkit-v1/esp32-rotary-encoder/include",
-                "/home/caleb/projects/skyhook/controller/.pio/libdeps/esp32doit-devkit-v1/esp32-rotary-encoder",
+                "/home/caleb/projects/skyhook/truck/include",
+                "/home/caleb/projects/skyhook/truck/src",
                 "/home/caleb/.platformio/packages/framework-espidf/components/esp_ringbuf/include",
-                "/home/caleb/projects/skyhook/controller/.pio/build/esp32doit-devkit-v1/config",
+                "/home/caleb/projects/skyhook/truck/.pio/build/esp32doit-devkit-v1/config",
                 "/home/caleb/.platformio/packages/framework-espidf/components/newlib/platform_include",
                 "/home/caleb/.platformio/packages/framework-espidf/components/freertos/include",
                 "/home/caleb/.platformio/packages/framework-espidf/components/heap/include",
@@ -94,20 +92,16 @@
                 "/home/caleb/.platformio/packages/framework-espidf/components/unity/include",
                 "/home/caleb/.platformio/packages/framework-espidf/components/unity/unity/src",
                 "/home/caleb/.platformio/packages/framework-espidf/components/wifi_provisioning/include",
-                "/home/caleb/projects/skyhook/controller/lib/esp32-rotary-encoder/include",
-                "/home/caleb/projects/skyhook/controller/lib/esp32-rotary-encoder",
                 "/home/caleb/.platformio/packages/tool-unity",
                 ""
             ],
             "browse": {
                 "limitSymbolsToIncludedHeaders": true,
                 "path": [
-                    "/home/caleb/projects/skyhook/controller/include",
-                    "/home/caleb/projects/skyhook/controller/src",
-                    "/home/caleb/projects/skyhook/controller/.pio/libdeps/esp32doit-devkit-v1/esp32-rotary-encoder/include",
-                    "/home/caleb/projects/skyhook/controller/.pio/libdeps/esp32doit-devkit-v1/esp32-rotary-encoder",
+                    "/home/caleb/projects/skyhook/truck/include",
+                    "/home/caleb/projects/skyhook/truck/src",
                     "/home/caleb/.platformio/packages/framework-espidf/components/esp_ringbuf/include",
-                    "/home/caleb/projects/skyhook/controller/.pio/build/esp32doit-devkit-v1/config",
+                    "/home/caleb/projects/skyhook/truck/.pio/build/esp32doit-devkit-v1/config",
                     "/home/caleb/.platformio/packages/framework-espidf/components/newlib/platform_include",
                     "/home/caleb/.platformio/packages/framework-espidf/components/freertos/include",
                     "/home/caleb/.platformio/packages/framework-espidf/components/heap/include",
@@ -188,8 +182,6 @@
                     "/home/caleb/.platformio/packages/framework-espidf/components/unity/include",
                     "/home/caleb/.platformio/packages/framework-espidf/components/unity/unity/src",
                     "/home/caleb/.platformio/packages/framework-espidf/components/wifi_provisioning/include",
-                    "/home/caleb/projects/skyhook/controller/lib/esp32-rotary-encoder/include",
-                    "/home/caleb/projects/skyhook/controller/lib/esp32-rotary-encoder",
                     "/home/caleb/.platformio/packages/tool-unity",
                     ""
                 ]

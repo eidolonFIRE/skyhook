@@ -1,4 +1,4 @@
-# Install script for directory: /home/pi/projects/skyhook/controller/.pio/build/esp32doit-devkit-v1/__pio_env
+# Install script for directory: /home/caleb/projects/skyhook/controller/.pio/build/esp32doit-devkit-v1/__pio_env
 
 # Set the install prefix
 if(NOT DEFINED CMAKE_INSTALL_PREFIX)

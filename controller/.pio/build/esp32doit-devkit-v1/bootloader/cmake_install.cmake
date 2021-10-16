@@ -1,4 +1,4 @@
-# Install script for directory: /home/pi/.platformio/packages/framework-espidf/components/bootloader/subproject
+# Install script for directory: /home/caleb/.platformio/packages/framework-espidf/components/bootloader/subproject
 
 # Set the install prefix
 if(NOT DEFINED CMAKE_INSTALL_PREFIX)
@@ -34,7 +34,7 @@ endif()
 
 if(NOT CMAKE_INSTALL_LOCAL_ONLY)
   # Include the install script for each subdirectory.
-  include("/home/pi/projects/skyhook/controller/.pio/build/esp32doit-devkit-v1/bootloader/esp-idf/cmake_install.cmake")
+  include("/home/caleb/projects/skyhook/controller/.pio/build/esp32doit-devkit-v1/bootloader/esp-idf/cmake_install.cmake")
 
 endif()
 
@@ -46,5 +46,5 @@ endif()
 
 string(REPLACE ";" "\n" CMAKE_INSTALL_MANIFEST_CONTENT
        "${CMAKE_INSTALL_MANIFEST_FILES}")
-file(WRITE "/home/pi/projects/skyhook/controller/.pio/build/esp32doit-devkit-v1/bootloader/${CMAKE_INSTALL_MANIFEST}"
+file(WRITE "/home/caleb/projects/skyhook/controller/.pio/build/esp32doit-devkit-v1/bootloader/${CMAKE_INSTALL_MANIFEST}"
      "${CMAKE_INSTALL_MANIFEST_CONTENT}")

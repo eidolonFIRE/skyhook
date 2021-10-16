@@ -1,4 +1,4 @@
-# Install script for directory: /home/pi/projects/skyhook/controller/src
+# Install script for directory: /home/caleb/projects/skyhook/controller/src
 
 # Set the install prefix
 if(NOT DEFINED CMAKE_INSTALL_PREFIX)

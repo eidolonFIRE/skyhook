@@ -1,4 +1,4 @@
-# Install script for directory: /home/pi/.platformio/packages/framework-espidf/components/newlib
+# Install script for directory: /home/caleb/.platformio/packages/framework-espidf/components/newlib
 
 # Set the install prefix
 if(NOT DEFINED CMAKE_INSTALL_PREFIX)
@@ -30,11 +30,5 @@ endif()
 # Is this installation the result of a crosscompile?
 if(NOT DEFINED CMAKE_CROSSCOMPILING)
   set(CMAKE_CROSSCOMPILING "TRUE")
-endif()
-
-if(NOT CMAKE_INSTALL_LOCAL_ONLY)
-  # Include the install script for each subdirectory.
-  include("/home/pi/projects/skyhook/controller/.pio/build/esp32doit-devkit-v1/esp-idf/newlib/port/cmake_install.cmake")
-
 endif()
 
