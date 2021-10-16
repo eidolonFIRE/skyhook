@@ -15,16 +15,18 @@
 
 #define TAG "app"
 
-#define ROT_ENC_A_GPIO 26
-#define ROT_ENC_B_GPIO 27
+#define ROT_ENC_A_GPIO 12
+#define ROT_ENC_B_GPIO 14
 
 #define ENABLE_HALF_STEPS false  // Set to true to enable tracking of rotary encoder at half step resolution
 #define RESET_AT          0      // Set to a positive non-zero number to reset the position if this value is exceeded
 #define FLIP_DIRECTION    false  // Set to true to reverse the clockwise/counterclockwise sense
 
-#define LEDGREEN 25
-#define LEDYELLOW 33
-#define LEDRED 32
+#define LEDBLUE 25
+#define LEDGREEN 26
+#define LEDRED 27
+
+#define MODE_SWITCH 33
 
 
 void setup_led(u_int8_t pin) {
@@ -34,7 +36,7 @@ void setup_led(u_int8_t pin) {
 
 void setup_adc() {
     adc1_config_width(ADC_WIDTH_BIT_12);
-    adc1_config_channel_atten(ADC1_CHANNEL_6, ADC_ATTEN_DB_11);
+    adc1_config_channel_atten(ADC1_CHANNEL_4, ADC_ATTEN_DB_11);
     adc1_config_width(ADC_WIDTH_BIT_12);
     adc1_config_channel_atten(ADC1_CHANNEL_7, ADC_ATTEN_DB_11);
 }
@@ -42,9 +44,9 @@ void setup_adc() {
 
 void app_main()
 {
-    setup_led(LEDGREEN);
-    setup_led(LEDYELLOW);
     setup_led(LEDRED);
+    setup_led(LEDGREEN);
+    setup_led(LEDBLUE);
 
     setup_adc();
 
@@ -83,9 +85,9 @@ void app_main()
         {
             ESP_LOGI(TAG, "Event: position %d, direction %s", event.state.position,
                      event.state.direction ? (event.state.direction == ROTARY_ENCODER_DIRECTION_CLOCKWISE ? "CW" : "CCW") : "NOT_SET");
-            gpio_set_level(LEDGREEN, event.state.position % 2);
-            gpio_set_level(LEDYELLOW, (event.state.position / 2) % 2);
-            gpio_set_level(LEDRED, (event.state.position / 4) % 2);
+            gpio_set_level(LEDRED, event.state.position % 2);
+            gpio_set_level(LEDGREEN, (event.state.position / 2) % 2);
+            gpio_set_level(LEDBLUE, (event.state.position / 4) % 2);
         }
         else
         {

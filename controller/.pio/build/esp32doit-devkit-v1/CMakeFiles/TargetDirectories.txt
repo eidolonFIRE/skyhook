@@ -34,13 +34,12 @@
 /home/pi/projects/skyhook/controller/.pio/build/esp32doit-devkit-v1/esp-idf/esp_pm/CMakeFiles/install.dir
 /home/pi/projects/skyhook/controller/.pio/build/esp32doit-devkit-v1/esp-idf/esp_pm/CMakeFiles/install/local.dir
 /home/pi/projects/skyhook/controller/.pio/build/esp32doit-devkit-v1/esp-idf/mbedtls/CMakeFiles/install/strip.dir
-/home/pi/projects/skyhook/controller/.pio/build/esp32doit-devkit-v1/esp-idf/mbedtls/CMakeFiles/custom_bundle.dir
 /home/pi/projects/skyhook/controller/.pio/build/esp32doit-devkit-v1/esp-idf/mbedtls/CMakeFiles/edit_cache.dir
-/home/pi/projects/skyhook/controller/.pio/build/esp32doit-devkit-v1/esp-idf/mbedtls/CMakeFiles/install/local.dir
-/home/pi/projects/skyhook/controller/.pio/build/esp32doit-devkit-v1/esp-idf/mbedtls/CMakeFiles/__idf_mbedtls.dir
 /home/pi/projects/skyhook/controller/.pio/build/esp32doit-devkit-v1/esp-idf/mbedtls/CMakeFiles/rebuild_cache.dir
 /home/pi/projects/skyhook/controller/.pio/build/esp32doit-devkit-v1/esp-idf/mbedtls/CMakeFiles/list_install_components.dir
 /home/pi/projects/skyhook/controller/.pio/build/esp32doit-devkit-v1/esp-idf/mbedtls/CMakeFiles/install.dir
+/home/pi/projects/skyhook/controller/.pio/build/esp32doit-devkit-v1/esp-idf/mbedtls/CMakeFiles/__idf_mbedtls.dir
+/home/pi/projects/skyhook/controller/.pio/build/esp32doit-devkit-v1/esp-idf/mbedtls/CMakeFiles/install/local.dir
 /home/pi/projects/skyhook/controller/.pio/build/esp32doit-devkit-v1/esp-idf/mbedtls/mbedtls/CMakeFiles/install/strip.dir
 /home/pi/projects/skyhook/controller/.pio/build/esp32doit-devkit-v1/esp-idf/mbedtls/mbedtls/CMakeFiles/edit_cache.dir
 /home/pi/projects/skyhook/controller/.pio/build/esp32doit-devkit-v1/esp-idf/mbedtls/mbedtls/CMakeFiles/apidoc.dir

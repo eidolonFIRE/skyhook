@@ -10,6 +10,7 @@
             "includePath": [
                 "/home/pi/projects/skyhook/controller/include",
                 "/home/pi/projects/skyhook/controller/src",
+                "/home/pi/projects/skyhook/controller/.pio/libdeps/esp32doit-devkit-v1/esp32-rotary-encoder/include",
                 "/home/pi/projects/skyhook/controller/.pio/libdeps/esp32doit-devkit-v1/esp32-rotary-encoder",
                 "/home/pi/.platformio/packages/framework-espidf/components/esp_pm/include",
                 "/home/pi/projects/skyhook/controller/.pio/build/esp32doit-devkit-v1/config",
@@ -116,6 +117,7 @@
                 "/home/pi/.platformio/packages/framework-espidf/components/spiffs/include",
                 "/home/pi/.platformio/packages/framework-espidf/components/ulp/include",
                 "/home/pi/.platformio/packages/framework-espidf/components/wifi_provisioning/include",
+                "/home/pi/projects/skyhook/controller/lib/esp32-rotary-encoder/include",
                 "/home/pi/projects/skyhook/controller/lib/esp32-rotary-encoder",
                 ""
             ],
@@ -124,6 +126,7 @@
                 "path": [
                     "/home/pi/projects/skyhook/controller/include",
                     "/home/pi/projects/skyhook/controller/src",
+                    "/home/pi/projects/skyhook/controller/.pio/libdeps/esp32doit-devkit-v1/esp32-rotary-encoder/include",
                     "/home/pi/projects/skyhook/controller/.pio/libdeps/esp32doit-devkit-v1/esp32-rotary-encoder",
                     "/home/pi/.platformio/packages/framework-espidf/components/esp_pm/include",
                     "/home/pi/projects/skyhook/controller/.pio/build/esp32doit-devkit-v1/config",
@@ -230,6 +233,7 @@
                     "/home/pi/.platformio/packages/framework-espidf/components/spiffs/include",
                     "/home/pi/.platformio/packages/framework-espidf/components/ulp/include",
                     "/home/pi/.platformio/packages/framework-espidf/components/wifi_provisioning/include",
+                    "/home/pi/projects/skyhook/controller/lib/esp32-rotary-encoder/include",
                     "/home/pi/projects/skyhook/controller/lib/esp32-rotary-encoder",
                     ""
                 ]
@@ -238,7 +242,7 @@
                 "_GNU_SOURCE",
                 "IDF_VER=\"4.3.0\"",
                 "ESP_PLATFORM",
-                "PLATFORMIO=50200",
+                "PLATFORMIO=50201",
                 "ARDUINO_ESP32_DEV",
                 ""
             ],

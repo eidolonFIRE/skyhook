@@ -58,16 +58,6 @@ rule C_STATIC_LIBRARY_LINKER____idf_esp_pm
 
 
 #############################################
-# Rule for compiling ASM files.
-
-rule ASM_COMPILER____idf_mbedtls
-  depfile = $DEP_FILE
-  deps = gcc
-  command = /home/pi/.platformio/packages/toolchain-xtensa32/bin/xtensa-esp32-elf-gcc $DEFINES $INCLUDES $FLAGS -MD -MT $out -MF $DEP_FILE -o $out -c $in
-  description = Building ASM object $out
-
-
-#############################################
 # Rule for compiling C files.
 
 rule C_COMPILER____idf_mbedtls
