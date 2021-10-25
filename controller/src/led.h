@@ -1,0 +1,13 @@
+#include "driver/ledc.h"
+
+
+typedef struct {
+    u_int8_t gpio_pin;
+    u_int8_t pwm_channel;
+} LED_t;
+
+
+void init_leds();
+void setup_led(LED_t led);
+void set_led_duty(LED_t led, uint32_t duty);
+void led_color(uint32_t red, uint32_t green, uint32_t blue);

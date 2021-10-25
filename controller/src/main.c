@@ -10,125 +10,172 @@
 #include "esp_system.h"
 #include "esp_log.h"
 
-
-#include <driver/adc.h>
 #include "sdkconfig.h"
-
-#include "driver/ledc.h"
 #include "driver/gpio.h"
 
 #include "include/rotary_encoder.h"
 
 #include "esp_wifi.h"
 #include "esp_event.h"
+#include "esp_event_loop.h"
 #include "nvs_flash.h"
 
 #include "lwip/err.h"
+#include "lwip/sockets.h"
 #include "lwip/sys.h"
+#include <lwip/netdb.h>
+
+#include <sys/param.h>
+
+// Project files
+#include "io_config.h"
+#include "secret_config.h"
+#include "led.h"
+#include "joystick.h"
 
 
-#define TAG "app"
 
-#define ROT_ENC_A_GPIO 12
-#define ROT_ENC_B_GPIO 14
+#define TAG "app ===== "
+
 
 #define ENABLE_HALF_STEPS false  // Set to true to enable tracking of rotary encoder at half step resolution
 #define RESET_AT          0      // Set to a positive non-zero number to reset the position if this value is exceeded
 
-#define LEDBLUE 25
-#define LEDGREEN 26
-#define LEDRED 27
+static xQueueHandle gpio_evt_queue = NULL;
 
-#define MODE_SWITCH 33
-
-
-#define X_AXIS ADC1_CHANNEL_4
-#define Y_AXIS ADC1_CHANNEL_7
-
-
-/* The examples use WiFi configuration that you can set via project configuration menu
-   If you'd rather not, just change the below entries to strings with
-   the config you want - ie #define EXAMPLE_WIFI_SSID "mywifissid"
-*/
-#define EXAMPLE_ESP_WIFI_SSID "ssid"
-#define EXAMPLE_ESP_WIFI_PASS "12345678"
-
-/* FreeRTOS event group to signal when we are connected*/
-static EventGroupHandle_t s_wifi_event_group;
-
-/* The event group allows multiple bits for each event, but we only care about two events:
- * - we are connected to the AP with an IP
- * - we failed to connect after the maximum amount of retries */
+static EventGroupHandle_t wifi_event_group;
 #define WIFI_CONNECTED_BIT BIT0
-#define WIFI_FAIL_BIT      BIT1
+#define WIFI_UPDATE BIT3
 
 
 
 typedef struct {
-    u_int8_t gpio_pin;
-    u_int8_t pwm_channel;
-} LED_t;
+    int32_t forward;
+    int32_t steering;
+    int32_t turret;
+    int32_t boom;
+    int32_t hook;
+} CONTROL_t;
 
-LED_t led_red = {27, LEDC_CHANNEL_0};
-LED_t led_green = {26, LEDC_CHANNEL_1};
-LED_t led_blue = {25, LEDC_CHANNEL_2};
+CONTROL_t control_msg = {0,0,0,0,0};
 
+int joystick_x = 0;
+int joystick_y = 0;
+int wheel = 0;
+int wheel_prev = 0;
 
-
-void setup_led(LED_t led) {
-    // gpio_pad_select_gpio(pin);
-    // gpio_set_direction(pin, GPIO_MODE_OUTPUT);
- 
-    // LED 
-    ledc_timer_config_t ledc_timer = {
-        .speed_mode       = LEDC_HIGH_SPEED_MODE,
-        .timer_num        = LEDC_TIMER_0,
-        .duty_resolution  = LEDC_TIMER_12_BIT,
-        .freq_hz          = 5000,
-        .clk_cfg          = LEDC_AUTO_CLK
-    };
-    ledc_timer_config(&ledc_timer);
-
-    // Prepare and then apply the LEDC PWM channel configuration
-    ledc_channel_config_t ledc_channel = {
-        .speed_mode     = LEDC_HIGH_SPEED_MODE,
-        .channel        = led.pwm_channel,
-        .timer_sel      = LEDC_TIMER_0,
-        .intr_type      = LEDC_INTR_DISABLE,
-        .gpio_num       = led.gpio_pin,
-        .duty           = 0,
-        .hpoint         = 0
-    };
-    ledc_channel_config(&ledc_channel);
-}
-
-void set_led_duty(LED_t led, float duty) {
-    ledc_set_duty(LEDC_HIGH_SPEED_MODE, led.pwm_channel, 8191 * duty);
-}
-
-void setup_adc(adc1_channel_t adc_channel) {
-    adc1_config_width(ADC_WIDTH_BIT_12);
-    adc1_config_channel_atten(adc_channel, ADC_ATTEN_DB_11);
-}
+bool flag_update_msg = false;
 
 
 
 
-
-static esp_err_t event_handler(void *ctx, system_event_t *event)
+static void udp_client_task(void *pvParameters)
 {
-    switch(event->event_id) {
+    char rx_buffer[128];
+    char addr_str[128];
+    int addr_family;
+    int ip_protocol;
+
+    while (1) {
+
+        struct sockaddr_in destAddr;
+        destAddr.sin_addr.s_addr = inet_addr(HOST_IP_ADDR);
+        destAddr.sin_family = AF_INET;
+        destAddr.sin_port = htons(HOST_PORT);
+        addr_family = AF_INET;
+        ip_protocol = IPPROTO_IP;
+        inet_ntoa_r(destAddr.sin_addr, addr_str, sizeof(addr_str) - 1);
+
+        int sock = socket(addr_family, SOCK_DGRAM, ip_protocol);
+        if (sock < 0) {
+            ESP_LOGE(TAG, "Unable to create socket: errno %d", errno);
+            break;
+        }
+        ESP_LOGI(TAG, "Socket created");
+
+        led_color(0, 300, 0);
+
+        while (1) {
+            flag_update_msg = false;
+            while (!flag_update_msg) {
+                vTaskDelay(20 / portTICK_PERIOD_MS);
+                if (poll_joystick(&joystick_x, &joystick_y)) break;
+            }
+
+            if (gpio_get_level(MODE_SWITCH)) {
+                // driving mode
+                led_color(0, 300, 500);
+                control_msg.forward = joystick_y;
+                control_msg.steering = wheel - wheel_prev;
+                control_msg.turret = 0;
+                control_msg.boom = 0;
+                control_msg.hook = 0;
+            } else {
+                // turret mode
+                led_color(0, 300, 0);
+                control_msg.forward = 0;
+                control_msg.steering = 0;
+                control_msg.turret = joystick_x;
+                control_msg.boom = joystick_y;
+                control_msg.hook = wheel - wheel_prev;
+            }
+            wheel_prev = wheel;
+            
+
+            int err = sendto(sock, &control_msg, sizeof(control_msg), 0, (struct sockaddr *)&destAddr, sizeof(destAddr));
+            if (err < 0) {
+                ESP_LOGE(TAG, "Error occured during sending: errno %d", errno);
+                break;
+            }
+
+            struct sockaddr_in sourceAddr;
+            socklen_t socklen = sizeof(sourceAddr);
+            int len = recvfrom(sock, rx_buffer, sizeof(rx_buffer) - 1, 0, (struct sockaddr *)&sourceAddr, &socklen);
+
+            // Error occured during receiving
+            if (len < 0) {
+                ESP_LOGE(TAG, "recvfrom failed: errno %d", errno);
+                break;
+            }
+            // Data received
+            else {
+                rx_buffer[len] = 0; // Null-terminate whatever we received and treat like a string
+                ESP_LOGI(TAG, "Received %d bytes from %s:", len, addr_str);
+                ESP_LOGI(TAG, "%s", rx_buffer);
+            }
+        }
+
+        led_color(800, 0, 0);
+
+        if (sock != -1) {
+            ESP_LOGE(TAG, "Shutting down socket and restarting...");
+            shutdown(sock, 0);
+            close(sock);
+        }
+    }
+    vTaskDelete(NULL);
+}
+
+
+
+static esp_err_t wifi_event_handler(void *ctx, system_event_t *event)
+{
+    switch (event->event_id) {
     case SYSTEM_EVENT_STA_START:
         esp_wifi_connect();
+        ESP_LOGI(TAG, "SYSTEM_EVENT_STA_START");
+        break;
+    case SYSTEM_EVENT_STA_CONNECTED:
         break;
     case SYSTEM_EVENT_STA_GOT_IP:
-        ESP_LOGI(TAG, "got ip:%s", ip4addr_ntoa(&event->event_info.got_ip.ip_info.ip));
-        xEventGroupSetBits(s_wifi_event_group, WIFI_CONNECTED_BIT);
+        xEventGroupSetBits(wifi_event_group, WIFI_CONNECTED_BIT);
+        ESP_LOGI(TAG, "SYSTEM_EVENT_STA_GOT_IP");
+        xTaskCreate(udp_client_task, "udp_client", 4096, NULL, 5, NULL);
         break;
     case SYSTEM_EVENT_STA_DISCONNECTED:
+        /* This is a workaround as ESP32 WiFi libs don't currently auto-reassociate. */
         esp_wifi_connect();
-        xEventGroupClearBits(s_wifi_event_group, WIFI_CONNECTED_BIT);
-        ESP_LOGI(TAG,"retry to connect to the AP");
+        xEventGroupClearBits(wifi_event_group, WIFI_CONNECTED_BIT);
         break;
     default:
         break;
@@ -136,23 +183,25 @@ static esp_err_t event_handler(void *ctx, system_event_t *event)
     return ESP_OK;
 }
 
+
+
 void wifi_init_sta()
 {
-    s_wifi_event_group = xEventGroupCreate();
+    wifi_event_group = xEventGroupCreate();
 
     tcpip_adapter_init();
-    ESP_ERROR_CHECK(esp_event_loop_init(event_handler, NULL) );
+    ESP_ERROR_CHECK(esp_event_loop_init(wifi_event_handler, NULL) );
 
     wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
     ESP_ERROR_CHECK(esp_wifi_init(&cfg));
     wifi_config_t wifi_config = {
         .sta = {
-            .ssid = EXAMPLE_ESP_WIFI_SSID,
-            .password = EXAMPLE_ESP_WIFI_PASS,
+            .ssid = WIFI_SSID,
+            .password = WIFI_PASS,
             /* Setting a password implies station will connect to all security modes including WEP/WPA.
              * However these modes are deprecated and not advisable to be used. Incase your Access point
              * doesn't support WPA2, these mode can be enabled by commenting below line */
-            .threshold.authmode = WIFI_AUTH_WPA2_PSK,
+            // .threshold.authmode = WIFI_AUTH_WPA2_PSK,
         },
     };
 
@@ -161,28 +210,54 @@ void wifi_init_sta()
     ESP_ERROR_CHECK(esp_wifi_start() );
 
     ESP_LOGI(TAG, "wifi_init_sta finished.");
-    ESP_LOGI(TAG, "connect to ap SSID:%s password:%s",
-             EXAMPLE_ESP_WIFI_SSID, EXAMPLE_ESP_WIFI_PASS);
 }
 
 
+static void IRAM_ATTR gpio_isr_handler(void *arg)
+{
+    flag_update_msg = true;
+    uint32_t gpio_num = (uint32_t) arg;
+    xQueueSendFromISR(gpio_evt_queue, &gpio_num, NULL);
+}
 
-
-
-
-
-
-
+static void gpio_task_example(void* arg)
+{
+    uint32_t io_num;
+    for(;;) {
+        if (xQueueReceive(gpio_evt_queue, &io_num, portMAX_DELAY)) {
+            printf("GPIO[%d] intr, val: %d\n", io_num, gpio_get_level(io_num));
+        }
+    }
+}
 
 
 void app_main()
 {
-    setup_led(led_red);
-    setup_led(led_green);
-    setup_led(led_blue);
+    init_leds();
 
     setup_adc(X_AXIS);
     setup_adc(Y_AXIS);
+
+    // setup mode switch
+    gpio_config_t io_conf = {
+        .pin_bit_mask = (1ULL<<MODE_SWITCH),
+        .mode = GPIO_MODE_INPUT,
+        .pull_up_en = true,
+        .pull_down_en = false,
+        .intr_type = GPIO_INTR_ANYEDGE,
+    };
+    gpio_config(&io_conf);
+
+    //create a queue to handle gpio event from isr
+    gpio_evt_queue = xQueueCreate(10, sizeof(uint32_t));
+    //start gpio task
+    xTaskCreate(gpio_task_example, "gpio_task_example", 2048, NULL, 10, NULL);
+
+    //install gpio isr service
+    gpio_install_isr_service(0);
+    //hook isr handler for specific gpio pin
+    gpio_isr_handler_add(MODE_SWITCH, gpio_isr_handler, (void*)MODE_SWITCH);
+
 
     //Initialize NVS / wifi
     esp_err_t ret = nvs_flash_init();
@@ -191,13 +266,12 @@ void app_main()
         ret = nvs_flash_init();
     }
     ESP_ERROR_CHECK(ret);
-
-    ESP_LOGI(TAG, "ESP_WIFI_MODE_STA");
     wifi_init_sta();
 
 
+
     // init rotary encoder
-    ESP_ERROR_CHECK(gpio_install_isr_service(0));
+    // ESP_ERROR_CHECK(gpio_install_isr_service(0));
     rotary_encoder_info_t info = { 0 };
     ESP_ERROR_CHECK(rotary_encoder_init(&info, ROT_ENC_A_GPIO, ROT_ENC_B_GPIO));
     // ESP_ERROR_CHECK(rotary_encoder_enable_half_steps(&info, ENABLE_HALF_STEPS));
@@ -209,37 +283,29 @@ void app_main()
     ESP_ERROR_CHECK(rotary_encoder_set_queue(&info, event_queue));
 
 
-    while (1)
-    {
+    while (1) {
         // Wait for incoming events on the event queue.
         rotary_encoder_event_t event = { 0 };
-        if (xQueueReceive(event_queue, &event, 1000 / portTICK_PERIOD_MS) == pdTRUE)
-        {
+        if (xQueueReceive(event_queue, &event, 1000 / portTICK_PERIOD_MS) == pdTRUE) {
             ESP_LOGI(TAG, "Event: position %d, direction %s", event.state.position,
                      event.state.direction ? (event.state.direction == ROTARY_ENCODER_DIRECTION_CLOCKWISE ? "CW" : "CCW") : "NOT_SET");
-
+            wheel = event.state.position;
+            flag_update_msg = true;
+        } else {
+            // // Poll current position and direction
+            // rotary_encoder_state_t state = { 0 };
+            // ESP_ERROR_CHECK(rotary_encoder_get_state(&info, &state));
+            // ESP_LOGI(TAG, "Poll: position %d, direction %s", state.position,
+            //          state.direction ? (state.direction == ROTARY_ENCODER_DIRECTION_CLOCKWISE ? "CW" : "CCW") : "NOT_SET");
+            // // gpio_set_level(LEDGREEN, event.state.position % 2);
+            // // gpio_set_level(LEDYELLOW, (event.state.position / 2) % 2);
+            // // gpio_set_level(LEDRED, (event.state.position / 4) % 2);
+            // // Reset the device
+            // if (RESET_AT && (state.position >= RESET_AT || state.position <= -RESET_AT)) {
+            //     ESP_LOGI(TAG, "Reset");
+            //     ESP_ERROR_CHECK(rotary_encoder_reset(&info));
+            // }
         }
-        else
-        {
-            // Poll current position and direction
-            rotary_encoder_state_t state = { 0 };
-            ESP_ERROR_CHECK(rotary_encoder_get_state(&info, &state));
-            ESP_LOGI(TAG, "Poll: position %d, direction %s", state.position,
-                     state.direction ? (state.direction == ROTARY_ENCODER_DIRECTION_CLOCKWISE ? "CW" : "CCW") : "NOT_SET");
-            // gpio_set_level(LEDGREEN, event.state.position % 2);
-            // gpio_set_level(LEDYELLOW, (event.state.position / 2) % 2);
-            // gpio_set_level(LEDRED, (event.state.position / 4) % 2);
-            // Reset the device
-            if (RESET_AT && (state.position >= RESET_AT || state.position <= -RESET_AT))
-            {
-                ESP_LOGI(TAG, "Reset");
-                ESP_ERROR_CHECK(rotary_encoder_reset(&info));
-            }
-        }
-
-        int val1 = adc1_get_raw(X_AXIS);
-        int val2 = adc1_get_raw(Y_AXIS);
-        ESP_LOGI(TAG, "Raw_X: %d\tRaw_Y: %d  \n", val1, val2);
     }
 
     

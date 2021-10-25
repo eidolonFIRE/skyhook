@@ -199,7 +199,7 @@
                 "IDF_VER=\"HEAD-HASH-NOTFOUND\"",
                 "GCC_NOT_5_2_0",
                 "ESP_PLATFORM",
-                "PLATFORMIO=50201",
+                "PLATFORMIO=50202",
                 "ARDUINO_ESP32_DEV",
                 ""
             ],
