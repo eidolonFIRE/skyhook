@@ -29,7 +29,8 @@
 
 // Project files
 #include "io_config.h"
-#include "secret_config.h"
+// #include "secret_config.h"
+#include "wifi_config.h"
 #include "led.h"
 #include "joystick.h"
 
@@ -128,21 +129,21 @@ static void udp_client_task(void *pvParameters)
                 break;
             }
 
-            struct sockaddr_in sourceAddr;
-            socklen_t socklen = sizeof(sourceAddr);
-            int len = recvfrom(sock, rx_buffer, sizeof(rx_buffer) - 1, 0, (struct sockaddr *)&sourceAddr, &socklen);
+            // struct sockaddr_in sourceAddr;
+            // socklen_t socklen = sizeof(sourceAddr);
+            // int len = recvfrom(sock, rx_buffer, sizeof(rx_buffer) - 1, 0, (struct sockaddr *)&sourceAddr, &socklen);
 
-            // Error occured during receiving
-            if (len < 0) {
-                ESP_LOGE(TAG, "recvfrom failed: errno %d", errno);
-                break;
-            }
-            // Data received
-            else {
-                rx_buffer[len] = 0; // Null-terminate whatever we received and treat like a string
-                ESP_LOGI(TAG, "Received %d bytes from %s:", len, addr_str);
-                ESP_LOGI(TAG, "%s", rx_buffer);
-            }
+            // // Error occured during receiving
+            // if (len < 0) {
+            //     ESP_LOGE(TAG, "recvfrom failed: errno %d", errno);
+            //     break;
+            // }
+            // // Data received
+            // else {
+            //     rx_buffer[len] = 0; // Null-terminate whatever we received and treat like a string
+            //     ESP_LOGI(TAG, "Received %d bytes from %s:", len, addr_str);
+            //     ESP_LOGI(TAG, "%s", rx_buffer);
+            // }
         }
 
         led_color(800, 0, 0);
@@ -215,7 +216,7 @@ void wifi_init_sta()
 
 static void IRAM_ATTR gpio_isr_handler(void *arg)
 {
-    flag_update_msg = true;
+    // flag_update_msg = true;
     uint32_t gpio_num = (uint32_t) arg;
     xQueueSendFromISR(gpio_evt_queue, &gpio_num, NULL);
 }
@@ -225,6 +226,7 @@ static void gpio_task_example(void* arg)
     uint32_t io_num;
     for(;;) {
         if (xQueueReceive(gpio_evt_queue, &io_num, portMAX_DELAY)) {
+            flag_update_msg = true;
             printf("GPIO[%d] intr, val: %d\n", io_num, gpio_get_level(io_num));
         }
     }
@@ -248,14 +250,13 @@ void app_main()
     };
     gpio_config(&io_conf);
 
-    //create a queue to handle gpio event from isr
+    // create a queue to handle gpio event from isr
     gpio_evt_queue = xQueueCreate(10, sizeof(uint32_t));
-    //start gpio task
+    // start gpio task
     xTaskCreate(gpio_task_example, "gpio_task_example", 2048, NULL, 10, NULL);
 
-    //install gpio isr service
+    // GPIO interrupt
     gpio_install_isr_service(0);
-    //hook isr handler for specific gpio pin
     gpio_isr_handler_add(MODE_SWITCH, gpio_isr_handler, (void*)MODE_SWITCH);
 
 

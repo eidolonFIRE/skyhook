@@ -13,7 +13,7 @@ int center_y = 1260;
 
 // square deadzone half side length
 #define DEADZONE 40
-#define THRESH 20
+#define THRESH 5
 
 
 void setup_adc(adc1_channel_t adc_channel) {
@@ -27,12 +27,7 @@ bool poll_joystick(int *x, int *y) {
     int raw_y = adc1_get_raw(Y_AXIS);
     
 
-    // hysteresis (since last poll)
-    bool changed = (abs(prev_x - raw_x) > THRESH) || (abs(prev_y - raw_y) > THRESH);
-    if (changed) {
-        prev_x = raw_x;
-        prev_y = raw_y;
-    }
+
 
 
     // calibrate values
@@ -42,6 +37,13 @@ bool poll_joystick(int *x, int *y) {
     *y = (temp_y > 0) ? MAX(0, temp_y - DEADZONE) : MIN(0, temp_y + DEADZONE);
 
     // printf("%4d\t%4d\t:\t%4d\t%4d \n", raw_x, raw_y, *x, *y);
+
+    // hysteresis (since last poll)
+    bool changed = (abs(prev_x - *x) > THRESH) || (abs(prev_y - *y) > THRESH);
+    if (changed) {
+        prev_x = *x;
+        prev_y = *y;
+    }
 
     return changed;
 }

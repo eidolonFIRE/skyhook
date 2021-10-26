@@ -1,0 +1,13 @@
+#include "driver/mcpwm.h"
+
+
+#define GPIO_PWM0A_OUT 26   //Set GPIO 15 as PWM0A
+#define GPIO_PWM0B_OUT 27   //Set GPIO 16 as PWM0B
+
+#define MOTOR_CTRL_MCPWM_UNIT   MCPWM_UNIT_0
+#define MOTOR_CTRL_MCPWM_TIMER  MCPWM_TIMER_0
+
+#define GPIO_OUTPUT_IO_0    33
+// #define GPIO_OUTPUT_IO_1    19
+#define GPIO_OUTPUT_PIN_SEL  ((1ULL<<GPIO_OUTPUT_IO_0))// | (1ULL<<GPIO_OUTPUT_IO_1))
+
