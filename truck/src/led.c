@@ -6,6 +6,7 @@ LED_t led_red = {LEDRED, LEDC_CHANNEL_0};
 LED_t led_green = {LEDGREEN, LEDC_CHANNEL_1};
 LED_t led_blue = {LEDBLUE, LEDC_CHANNEL_2};
 
+
 void setup_led(LED_t led) {
     // gpio_pad_select_gpio(pin);
     // gpio_set_direction(pin, GPIO_MODE_OUTPUT);
@@ -48,6 +49,7 @@ void set_led_duty(LED_t led, u_int32_t duty) {
     Red, Green, Blue values on scale 0 - 1000 
 */
 void led_color(uint32_t red, uint32_t green, uint32_t blue) {
+    
     set_led_duty(led_red, red);
     set_led_duty(led_green, green);
     set_led_duty(led_blue, blue);

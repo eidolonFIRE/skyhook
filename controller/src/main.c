@@ -51,7 +51,7 @@ static EventGroupHandle_t wifi_event_group;
 
 
 typedef struct {
-    int32_t forward;
+    int32_t drive;
     int32_t steering;
     int32_t turret;
     int32_t boom;
@@ -106,7 +106,7 @@ static void udp_client_task(void *pvParameters)
             if (gpio_get_level(MODE_SWITCH)) {
                 // driving mode
                 led_color(0, 300, 500);
-                control_msg.forward = joystick_y;
+                control_msg.drive = joystick_y;
                 control_msg.steering = wheel - wheel_prev;
                 control_msg.turret = 0;
                 control_msg.boom = 0;
@@ -114,7 +114,7 @@ static void udp_client_task(void *pvParameters)
             } else {
                 // turret mode
                 led_color(0, 300, 0);
-                control_msg.forward = 0;
+                control_msg.drive = 0;
                 control_msg.steering = 0;
                 control_msg.turret = joystick_x;
                 control_msg.boom = joystick_y;
@@ -236,6 +236,9 @@ static void gpio_task_example(void* arg)
 void app_main()
 {
     init_leds();
+
+    // initial state
+    led_color(700, 600, 0);
 
     setup_adc(X_AXIS);
     setup_adc(Y_AXIS);

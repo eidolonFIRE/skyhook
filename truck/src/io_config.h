@@ -1,13 +1,19 @@
-#include "driver/mcpwm.h"
+#define MOTOR_STEERING 25
 
+#define MOTOR_STEPPER_STEP 26
+#define MOTOR_STEPPER_DIR 27
 
-#define GPIO_PWM0A_OUT 26   //Set GPIO 15 as PWM0A
-#define GPIO_PWM0B_OUT 27   //Set GPIO 16 as PWM0B
+#define MOTOR_TURRET_A 19
+#define MOTOR_TURRET_B 18
 
-#define MOTOR_CTRL_MCPWM_UNIT   MCPWM_UNIT_0
-#define MOTOR_CTRL_MCPWM_TIMER  MCPWM_TIMER_0
+#define MOTOR_BOOM_A 5
+#define MOTOR_BOOM_B 17
 
-#define GPIO_OUTPUT_IO_0    33
-// #define GPIO_OUTPUT_IO_1    19
-#define GPIO_OUTPUT_PIN_SEL  ((1ULL<<GPIO_OUTPUT_IO_0))// | (1ULL<<GPIO_OUTPUT_IO_1))
+#define MOTOR_HOOK_A 16
+#define MOTOR_HOOK_B 4
 
+#define LEDBLUE 35
+#define LEDGREEN 32
+#define LEDRED 33
+
+#define BATT_VOLT ADC1_CHANNEL_6 // GPIO 34

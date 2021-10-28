@@ -1,8 +1,8 @@
 #include <stdio.h>
 
+#include <driver/adc.h>
 #include "driver/gpio.h"
 #include "driver/ledc.h"
-#include "driver/mcpwm.h"
 #include "driver/pcnt.h"
 #include "esp_attr.h"
 #include "esp_err.h"
@@ -18,7 +18,6 @@
 #include "lwip/sockets.h"
 #include "lwip/sys.h"
 #include "nvs_flash.h"
-#include "soc/mcpwm_periph.h"
 #include <lwip/netdb.h>
 #include <string.h>
 #include <sys/param.h>
@@ -27,39 +26,74 @@
 // Project Files
 #include "wifi_config.h"
 #include "io_config.h"
+#include "motor.h"
+#include "led.h"
 
 #define TAG "app ===== "
 
 static EventGroupHandle_t s_wifi_event_group;
 
+typedef struct {
+    int32_t value;
+    int32_t min;
+    int32_t rate;
+    int32_t max;
+} CONTROL_t;
 
 typedef struct {
-    int32_t forward;
+    int32_t value;
+    int32_t target;
+    int32_t rate;
+    int32_t max_rate;
+} CONTROL_RATE_t;
+
+CONTROL_t control_drive     = {  0, -1000,   10, 1000};
+CONTROL_t control_steering  = {240,   180,   10,  300}; // servo
+CONTROL_t control_turret    = {  0, -1500,   10, 1500}; // stepper
+CONTROL_t control_boom      = {  0, -1000,   10, 1000};
+CONTROL_RATE_t control_hook = {  0,     0,    0, 1000};
+
+struct {
+    int32_t drive;
     int32_t steering;
     int32_t turret;
     int32_t boom;
     int32_t hook;
-} CONTROL_t;
-
-CONTROL_t *rx_control_msg;
+} *rx_control_msg;
 
 
+void clamp_control(CONTROL_t control) {
+    control.value = MIN(control.max, MAX(control.min, control.value));
+}
 
-void init() {
-    mcpwm_gpio_init(MOTOR_CTRL_MCPWM_UNIT, MCPWM0A, GPIO_PWM0A_OUT);
-    mcpwm_gpio_init(MOTOR_CTRL_MCPWM_UNIT, MCPWM0B, GPIO_PWM0B_OUT);
+void slew_control(CONTROL_t control, int32_t value) {
+    control.value += MIN(control.rate, MAX(-control.rate, (value - control.value)));
+    clamp_control(control);
+}
 
-    mcpwm_config_t pwm_config;
-    pwm_config.frequency = 1000;     //frequency = 1kHz,
-    pwm_config.cmpr_a = 0;                              //initial duty cycle of PWMxA = 0
-    pwm_config.cmpr_b = 0;                              //initial duty cycle of PWMxb = 0
-    pwm_config.counter_mode = MCPWM_UP_COUNTER;         //up counting mode
-    pwm_config.duty_mode = MCPWM_DUTY_MODE_0;
-    mcpwm_init(MOTOR_CTRL_MCPWM_UNIT, MOTOR_CTRL_MCPWM_TIMER, &pwm_config);    //Configure PWM0A & PWM0B with above settings
-    mcpwm_start(MOTOR_CTRL_MCPWM_UNIT, MOTOR_CTRL_MCPWM_TIMER);
+void add_control(CONTROL_t control, int32_t value) {
+    control.value += value;
+    clamp_control(control);
+}
+
+void rate_control(CONTROL_RATE_t control) {
+    // integrate
+    control.value += control.rate;
+
+    // update velocity
+    int32_t target_rate = (control.target - control.rate) / 10;
+    control.rate = MIN(control.max_rate, MAX(-control.max_rate, target_rate));
+}
 
 
-    // LED (stepper motor)
+void init_adc(adc1_channel_t adc_channel) {
+    adc1_config_width(ADC_WIDTH_BIT_12);
+    adc1_config_channel_atten(adc_channel, ADC_ATTEN_DB_11);
+}
+
+void init_stepper() {
+
+    // PWM stepper motor (led perif)
     ledc_timer_config_t ledc_timer_mtr = {
         .speed_mode       = LEDC_HIGH_SPEED_MODE,
         .timer_num        = LEDC_TIMER_0,
@@ -75,13 +109,25 @@ void init() {
         .channel        = LEDC_CHANNEL_0,
         .timer_sel      = LEDC_TIMER_0,
         .intr_type      = LEDC_INTR_DISABLE,
-        .gpio_num       = 25,
-        .duty           = (1<<4), // Set duty to 50%
+        .gpio_num       = MOTOR_STEPPER_STEP,
+        .duty           = 0,
         .hpoint         = 0
     };
     ESP_ERROR_CHECK(ledc_channel_config(&ledc_channel_mtr));
 
+    // setup IO for directional control
+    gpio_config_t io_conf = {
+        .intr_type = GPIO_INTR_DISABLE,
+        .mode = GPIO_MODE_OUTPUT,
+        .pin_bit_mask = 1ULL << MOTOR_STEPPER_DIR,
+        .pull_down_en = 0,
+        .pull_up_en = 0,
+    };
+    gpio_config(&io_conf);
+}
 
+
+void init_servo() {
     // LED (servo)
     ledc_timer_config_t ledc_timer_servo = {
         .speed_mode       = LEDC_HIGH_SPEED_MODE,
@@ -98,45 +144,14 @@ void init() {
         .channel        = LEDC_CHANNEL_1,
         .timer_sel      = LEDC_TIMER_1,
         .intr_type      = LEDC_INTR_DISABLE,
-        .gpio_num       = 32,
-        .duty           = 0,
+        .gpio_num       = MOTOR_STEERING,
+        .duty           = 240,
         .hpoint         = 0
     };
     ESP_ERROR_CHECK(ledc_channel_config(&ledc_channel_servo));
-
-
-    // setup IO
-    gpio_config_t io_conf = {};
-    //disable interrupt
-    io_conf.intr_type = GPIO_INTR_DISABLE;
-    //set as output mode
-    io_conf.mode = GPIO_MODE_OUTPUT;
-    //bit mask of the pins that you want to set,e.g.GPIO18/19
-    io_conf.pin_bit_mask = GPIO_OUTPUT_PIN_SEL;
-    //disable pull-down mode
-    io_conf.pull_down_en = 0;
-    //disable pull-up mode
-    io_conf.pull_up_en = 0;
-    //configure GPIO with the given settings
-    gpio_config(&io_conf);
 }
 
 
-void brushed_motor_set_duty(float duty_cycle)
-{
-    /* motor moves in forward direction, with duty cycle = duty % */
-    if (duty_cycle > 0) {
-        mcpwm_set_signal_low(MOTOR_CTRL_MCPWM_UNIT, MOTOR_CTRL_MCPWM_TIMER, MCPWM_OPR_A);
-        mcpwm_set_duty(MOTOR_CTRL_MCPWM_UNIT, MOTOR_CTRL_MCPWM_TIMER, MCPWM_OPR_B, duty_cycle);
-        mcpwm_set_duty_type(MOTOR_CTRL_MCPWM_UNIT, MOTOR_CTRL_MCPWM_TIMER, MCPWM_OPR_B, MCPWM_DUTY_MODE_0);  //call this each time, if operator was previously in low/high state
-    }
-    /* motor moves in backward direction, with duty cycle = -duty % */
-    else {
-        mcpwm_set_signal_low(MOTOR_CTRL_MCPWM_UNIT, MOTOR_CTRL_MCPWM_TIMER, MCPWM_OPR_B);
-        mcpwm_set_duty(MOTOR_CTRL_MCPWM_UNIT, MOTOR_CTRL_MCPWM_TIMER, MCPWM_OPR_A, -duty_cycle);
-        mcpwm_set_duty_type(MOTOR_CTRL_MCPWM_UNIT, MOTOR_CTRL_MCPWM_TIMER, MCPWM_OPR_A, MCPWM_DUTY_MODE_0); //call this each time, if operator was previously in low/high state
-    }
-}
 
 
 
@@ -144,7 +159,6 @@ void brushed_motor_set_duty(float duty_cycle)
 
 static void udp_server_task(void *pvParameters)
 {
-    char rx_buffer[128];
     char addr_str[128];
     int addr_family;
     int ip_protocol;
@@ -178,7 +192,7 @@ static void udp_server_task(void *pvParameters)
             // ESP_LOGI(TAG, "Waiting for data");
             struct sockaddr_in6 sourceAddr;
             socklen_t socklen = sizeof(sourceAddr);
-            int len = recvfrom(sock, rx_buffer, sizeof(rx_buffer) - 1, 0, (struct sockaddr *)&sourceAddr, &socklen);
+            int len = recvfrom(sock, rx_control_msg, sizeof(rx_control_msg), 0, (struct sockaddr *)&sourceAddr, &socklen);
 
             // Error occured during receiving
             if (len < 0) {
@@ -194,19 +208,18 @@ static void udp_server_task(void *pvParameters)
                     inet6_ntoa_r(sourceAddr.sin6_addr, addr_str, sizeof(addr_str) - 1);
                 }
 
-                rx_buffer[len] = 0; // Null-terminate whatever we received and treat like a string...
-                // ESP_LOGI(TAG, "Received %d bytes from %s:", len, addr_str);
-                // ESP_LOGI(TAG, "%s", rx_buffer);
+                // Apply here because it's a delta value
+                add_control(control_steering, rx_control_msg->steering);
+                control_hook.target += rx_control_msg->hook * 1000;
 
-                rx_control_msg = rx_buffer;
+                // DEBUG: control values coming from controller
+                ESP_LOGI(TAG, "%4d, %4d, %4d, %4d, %4d\n", rx_control_msg->drive, rx_control_msg->steering, rx_control_msg->boom, rx_control_msg->turret, rx_control_msg->hook);
 
-                ESP_LOGI(TAG, "%4d, %4d, %4d, %4d, %4d\n", rx_control_msg->forward, rx_control_msg->steering, rx_control_msg->boom, rx_control_msg->turret, rx_control_msg->hook);
-
-                int err = sendto(sock, rx_buffer, len, 0, (struct sockaddr *)&sourceAddr, sizeof(sourceAddr));
-                if (err < 0) {
-                    ESP_LOGE(TAG, "Error occured during sending: errno %d", errno);
-                    break;
-                }
+                // int err = sendto(sock, rx_buffer, len, 0, (struct sockaddr *)&sourceAddr, sizeof(sourceAddr));
+                // if (err < 0) {
+                //     ESP_LOGE(TAG, "Error occured during sending: errno %d", errno);
+                //     break;
+                // }
             }
         }
 
@@ -228,11 +241,13 @@ static esp_err_t event_handler(void *ctx, system_event_t *event)
         ESP_LOGI(TAG, "station:"MACSTR" join, AID=%d",
                  MAC2STR(event->event_info.sta_connected.mac),
                  event->event_info.sta_connected.aid);
+        led_color(0, 300, 0);
         break;
     case SYSTEM_EVENT_AP_STADISCONNECTED:
         ESP_LOGI(TAG, "station:"MACSTR"leave, AID=%d",
                  MAC2STR(event->event_info.sta_disconnected.mac),
                  event->event_info.sta_disconnected.aid);
+        led_color(800, 600, 0);
         break;
     default:
         break;
@@ -277,42 +292,69 @@ void wifi_init_softap()
 
 void app_main() {
 
-    //Initialize NVS
+    // Setup Perifs
+    init_adc(BATT_VOLT);
+    init_leds();
+    init_servo();
+    init_stepper();
+    init_motors();
+
+    // initial state
+    led_color(700, 600, 0);
+
+    // Setup Wifi / Server
     esp_err_t ret = nvs_flash_init();
     if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
       ESP_ERROR_CHECK(nvs_flash_erase());
       ret = nvs_flash_init();
     }
     ESP_ERROR_CHECK(ret);
-    
-    ESP_LOGI(TAG, "ESP_WIFI_MODE_AP");
     wifi_init_softap();
 
+    uint32_t batt_checker = 0;
 
-
-    init();
-
-    float duty = 0.0;
-    int dir = 1;
     while (1) {
-        duty += dir;
-        if (duty > 100) {
-            duty = 100;
-            dir = -1;
-        }
-        if (duty < -100) {
-            duty = -100;
-            dir = 1;
-        }
-        brushed_motor_set_duty(duty);
+        // Slew controls
+        slew_control(control_drive, rx_control_msg->drive);
+        slew_control(control_turret, rx_control_msg->turret);
+        slew_control(control_boom, rx_control_msg->boom);
+        rate_control(control_hook);
 
-        ledc_set_freq(LEDC_HIGH_SPEED_MODE, LEDC_TIMER_0, abs(duty * 15) + 10);
-        gpio_set_level(GPIO_OUTPUT_IO_0, duty > 0);
+        // Update Motor Controls
+        set_motor(motor_drive, control_drive.value);
+        set_motor(motor_boom, control_boom.value);
+        set_motor(motor_hook, control_hook.rate);
 
-        ledc_set_duty(LEDC_HIGH_SPEED_MODE, LEDC_TIMER_1, 240 + duty / 1.5);
+        // (stepper)
+        if (abs(control_turret.value) > 10) {
+            // enable pwm signal
+            ledc_set_duty(LEDC_HIGH_SPEED_MODE, LEDC_TIMER_0, (1<<4));
+            ledc_update_duty(LEDC_HIGH_SPEED_MODE, LEDC_CHANNEL_0);
+
+            // set frequency
+            ledc_set_freq(LEDC_HIGH_SPEED_MODE, LEDC_TIMER_0, abs(control_boom.value) + 10);
+            gpio_set_level(MOTOR_STEPPER_DIR, control_boom.value > 0);
+        } else {
+            // disable pwm signal
+            ledc_set_duty(LEDC_HIGH_SPEED_MODE, LEDC_TIMER_0, 0);
+            ledc_update_duty(LEDC_HIGH_SPEED_MODE, LEDC_CHANNEL_0);
+        }
+
+        // (servo)
+        ledc_set_duty(LEDC_HIGH_SPEED_MODE, LEDC_TIMER_1, control_steering.value);
         ledc_update_duty(LEDC_HIGH_SPEED_MODE, LEDC_CHANNEL_1);
 
-        // printf("%2.2f", duty);
+        // Controls refresh rate
         vTaskDelay(20 / portTICK_PERIOD_MS);
+
+        // Check battery (only every so often)
+        if (batt_checker++ > 1000) {
+            float battery = adc1_get_raw(BATT_VOLT) / 100.0;
+            ESP_LOGI(TAG, "Battery Voltage:%2.2f", battery);
+            if (battery < (3.8 * 4.0)) {
+                // Low Battery Warning
+                led_color(800, 0, 0);
+            }
+        }
     }
 }
