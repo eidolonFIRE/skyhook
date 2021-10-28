@@ -71,12 +71,10 @@ bool flag_update_msg = false;
 
 static void udp_client_task(void *pvParameters)
 {
-    char rx_buffer[128];
+    // char rx_buffer[128];
     char addr_str[128];
     int addr_family;
     int ip_protocol;
-
-    int batt_counter = 0;
 
     while (1) {
 
@@ -225,7 +223,7 @@ static void IRAM_ATTR gpio_isr_handler(void *arg)
     xQueueSendFromISR(gpio_evt_queue, &gpio_num, NULL);
 }
 
-static void gpio_task_example(void* arg)
+static void gpio_itr_mode(void* arg)
 {
     uint32_t io_num;
     for(;;) {
@@ -233,6 +231,19 @@ static void gpio_task_example(void* arg)
             flag_update_msg = true;
             // printf("GPIO[%d] intr, val: %d\n", io_num, gpio_get_level(io_num));
         }
+    }
+}
+
+static void check_battery() {
+    while (true) {
+        float batt_v = adc1_get_raw(BATT_VOL) * 3.9 / 1420.0;
+        ESP_LOGI(TAG, "Battery Voltage: %1.2fv", batt_v);
+        if (batt_v < (3.8 * 4.0)) {
+            // Low Battery Warning
+            led_color(800, 0, 0);
+        }
+        // seconds * 100
+        vTaskDelay(120 * 100);
     }
 }
 
@@ -262,12 +273,14 @@ void app_main()
     // create a queue to handle gpio event from isr
     gpio_evt_queue = xQueueCreate(10, sizeof(uint32_t));
     // start gpio task
-    xTaskCreate(gpio_task_example, "gpio_task_example", 2048, NULL, 10, NULL);
+    xTaskCreate(gpio_itr_mode, "gpio_itr_mode", 2048, NULL, 10, NULL);
 
     // GPIO interrupt
     gpio_install_isr_service(0);
     gpio_isr_handler_add(MODE_SWITCH, gpio_isr_handler, (void*)MODE_SWITCH);
 
+    // Battery checker
+    xTaskCreate(check_battery, "battery_checker", 256, NULL, 4, NULL);
 
     //Initialize NVS / wifi
     esp_err_t ret = nvs_flash_init();
@@ -292,7 +305,6 @@ void app_main()
     QueueHandle_t event_queue = rotary_encoder_create_queue();
     ESP_ERROR_CHECK(rotary_encoder_set_queue(&info, event_queue));
 
-    int batt_counter = 0;
     while (1) {
         // Wait for incoming events on the event queue.
         rotary_encoder_event_t event = { 0 };
@@ -301,11 +313,6 @@ void app_main()
                      event.state.direction ? (event.state.direction == ROTARY_ENCODER_DIRECTION_CLOCKWISE ? "CW" : "CCW") : "NOT_SET");
             wheel = event.state.position;
             flag_update_msg = true;
-            if (batt_counter-- < 0) {
-                batt_counter = 100;
-                float batt_v = adc1_get_raw(BATT_VOL) * 3.9 / 1420.0;
-                ESP_LOGI(TAG, "Battery Voltage: %1.2fv", batt_v);
-            }
         } else {
             // // Poll current position and direction
             // rotary_encoder_state_t state = { 0 };
@@ -322,12 +329,5 @@ void app_main()
             // }
         }
     }
-
-    
-
-
-    ESP_LOGE(TAG, "queue receive failed");
-
-    ESP_ERROR_CHECK(rotary_encoder_uninit(&info));
 }
 

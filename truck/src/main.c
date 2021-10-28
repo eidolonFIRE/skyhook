@@ -288,16 +288,31 @@ void wifi_init_softap()
 }
 
 
+static void check_battery() {
+    while (true) {
+        float batt_v = adc1_get_raw(BATT_VOL) * 3.9 / 1420.0;
+        ESP_LOGI(TAG, "Battery Voltage: %1.2fv", batt_v);
+        if (batt_v < (3.8 * 4.0)) {
+            // Low Battery Warning
+            led_color(800, 0, 0);
+        }
+        // seconds * 100
+        vTaskDelay(120 * 100);
+    }
+}
 
 
 void app_main() {
 
     // Setup Perifs
-    init_adc(BATT_VOLT);
+    init_adc(BATT_VOL);
     init_leds();
     init_servo();
     init_stepper();
     init_motors();
+
+    // Battery checker
+    xTaskCreate(check_battery, "battery_checker", 256, NULL, 4, NULL);
 
     // initial state
     led_color(700, 600, 0);
@@ -310,8 +325,6 @@ void app_main() {
     }
     ESP_ERROR_CHECK(ret);
     wifi_init_softap();
-
-    uint32_t batt_checker = 0;
 
     while (1) {
         // Slew controls
@@ -346,15 +359,5 @@ void app_main() {
 
         // Controls refresh rate
         vTaskDelay(20 / portTICK_PERIOD_MS);
-
-        // Check battery (only every so often)
-        if (batt_checker++ > 1000) {
-            float battery = adc1_get_raw(BATT_VOLT) / 100.0;
-            ESP_LOGI(TAG, "Battery Voltage:%2.2f", battery);
-            if (battery < (3.8 * 4.0)) {
-                // Low Battery Warning
-                led_color(800, 0, 0);
-            }
-        }
     }
 }
