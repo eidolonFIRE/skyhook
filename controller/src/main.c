@@ -29,7 +29,6 @@
 
 // Project files
 #include "io_config.h"
-// #include "secret_config.h"
 #include "wifi_config.h"
 #include "led.h"
 #include "joystick.h"
@@ -76,6 +75,8 @@ static void udp_client_task(void *pvParameters)
     char addr_str[128];
     int addr_family;
     int ip_protocol;
+
+    int batt_counter = 0;
 
     while (1) {
 
@@ -144,6 +145,9 @@ static void udp_client_task(void *pvParameters)
             //     ESP_LOGI(TAG, "Received %d bytes from %s:", len, addr_str);
             //     ESP_LOGI(TAG, "%s", rx_buffer);
             // }
+
+            // check battery every so often
+            
         }
 
         led_color(800, 0, 0);
@@ -227,7 +231,7 @@ static void gpio_task_example(void* arg)
     for(;;) {
         if (xQueueReceive(gpio_evt_queue, &io_num, portMAX_DELAY)) {
             flag_update_msg = true;
-            printf("GPIO[%d] intr, val: %d\n", io_num, gpio_get_level(io_num));
+            // printf("GPIO[%d] intr, val: %d\n", io_num, gpio_get_level(io_num));
         }
     }
 }
@@ -242,6 +246,8 @@ void app_main()
 
     setup_adc(X_AXIS);
     setup_adc(Y_AXIS);
+
+    setup_adc(BATT_VOL);
 
     // setup mode switch
     gpio_config_t io_conf = {
@@ -286,7 +292,7 @@ void app_main()
     QueueHandle_t event_queue = rotary_encoder_create_queue();
     ESP_ERROR_CHECK(rotary_encoder_set_queue(&info, event_queue));
 
-
+    int batt_counter = 0;
     while (1) {
         // Wait for incoming events on the event queue.
         rotary_encoder_event_t event = { 0 };
@@ -295,6 +301,11 @@ void app_main()
                      event.state.direction ? (event.state.direction == ROTARY_ENCODER_DIRECTION_CLOCKWISE ? "CW" : "CCW") : "NOT_SET");
             wheel = event.state.position;
             flag_update_msg = true;
+            if (batt_counter-- < 0) {
+                batt_counter = 100;
+                float batt_v = adc1_get_raw(BATT_VOL) * 3.9 / 1420.0;
+                ESP_LOGI(TAG, "Battery Voltage: %1.2fv", batt_v);
+            }
         } else {
             // // Poll current position and direction
             // rotary_encoder_state_t state = { 0 };
