@@ -242,7 +242,7 @@
                 "_GNU_SOURCE",
                 "IDF_VER=\"4.3.0\"",
                 "ESP_PLATFORM",
-                "PLATFORMIO=50201",
+                "PLATFORMIO=50202",
                 "ARDUINO_ESP32_DEV",
                 ""
             ],

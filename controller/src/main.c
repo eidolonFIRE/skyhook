@@ -235,10 +235,11 @@ static void gpio_itr_mode(void* arg)
 }
 
 static void check_battery() {
+    float batt_v = 0;
     while (true) {
-        float batt_v = adc1_get_raw(BATT_VOL) * 3.9 / 1420.0;
+        batt_v = adc1_get_raw(BATT_VOL) * 3.9 / 1420.0;
         ESP_LOGI(TAG, "Battery Voltage: %1.2fv", batt_v);
-        if (batt_v < (3.8 * 4.0)) {
+        if (batt_v < (3.8)) {
             // Low Battery Warning
             led_color(800, 0, 0);
         }
@@ -280,7 +281,7 @@ void app_main()
     gpio_isr_handler_add(MODE_SWITCH, gpio_isr_handler, (void*)MODE_SWITCH);
 
     // Battery checker
-    xTaskCreate(check_battery, "battery_checker", 256, NULL, 4, NULL);
+    xTaskCreate(check_battery, "bat_checker", 2048, NULL, tskIDLE_PRIORITY, NULL);
 
     //Initialize NVS / wifi
     esp_err_t ret = nvs_flash_init();

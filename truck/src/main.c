@@ -47,11 +47,11 @@ typedef struct {
     int32_t max_rate;
 } CONTROL_RATE_t;
 
-CONTROL_t control_drive     = {  0, -1000,   10, 1000};
-CONTROL_t control_steering  = {240,   180,   10,  300}; // servo
-CONTROL_t control_turret    = {  0, -1500,   10, 1500}; // stepper
-CONTROL_t control_boom      = {  0, -1000,   10, 1000};
-CONTROL_RATE_t control_hook = {  0,     0,    0, 1000};
+CONTROL_t control_drive     = {  0, -1000,  50, 1000};
+CONTROL_t control_steering  = {240,   180,   0,  300}; // servo
+CONTROL_t control_turret    = {  0, -1500,  20, 1500}; // stepper
+CONTROL_t control_boom      = {  0, -1000, 100, 1000};
+CONTROL_RATE_t control_hook = {  0,     0,   0, 1000};
 
 struct {
     int32_t drive;
@@ -61,28 +61,29 @@ struct {
     int32_t hook;
 } *rx_control_msg;
 
+char rx_buffer[1024];
 
-void clamp_control(CONTROL_t control) {
-    control.value = MIN(control.max, MAX(control.min, control.value));
+void clamp_control(CONTROL_t *control) {
+    control->value = MIN(control->max, MAX(control->min, control->value));
 }
 
-void slew_control(CONTROL_t control, int32_t value) {
-    control.value += MIN(control.rate, MAX(-control.rate, (value - control.value)));
+void slew_control(CONTROL_t *control, int32_t value) {
+    control->value += MIN(control->rate, MAX(-control->rate, (value - control->value)));
     clamp_control(control);
 }
 
-void add_control(CONTROL_t control, int32_t value) {
-    control.value += value;
+void add_control(CONTROL_t *control, int32_t value) {
+    control->value += value;
     clamp_control(control);
 }
 
-void rate_control(CONTROL_RATE_t control) {
+void rate_control(CONTROL_RATE_t *control) {
     // integrate
-    control.value += control.rate;
+    control->value += control->rate;
 
     // update velocity
-    int32_t target_rate = (control.target - control.rate) / 10;
-    control.rate = MIN(control.max_rate, MAX(-control.max_rate, target_rate));
+    int32_t target_rate = (control->target - control->rate) / 10;
+    control->rate = MIN(control->max_rate, MAX(-control->max_rate, target_rate));
 }
 
 
@@ -192,7 +193,7 @@ static void udp_server_task(void *pvParameters)
             // ESP_LOGI(TAG, "Waiting for data");
             struct sockaddr_in6 sourceAddr;
             socklen_t socklen = sizeof(sourceAddr);
-            int len = recvfrom(sock, rx_control_msg, sizeof(rx_control_msg), 0, (struct sockaddr *)&sourceAddr, &socklen);
+            int len = recvfrom(sock, rx_buffer, sizeof(rx_buffer), 0, (struct sockaddr *)&sourceAddr, &socklen);
 
             // Error occured during receiving
             if (len < 0) {
@@ -209,11 +210,11 @@ static void udp_server_task(void *pvParameters)
                 }
 
                 // Apply here because it's a delta value
-                add_control(control_steering, rx_control_msg->steering);
-                control_hook.target += rx_control_msg->hook * 1000;
+                add_control(&control_steering, rx_control_msg->steering);
+                control_hook.target += rx_control_msg->hook * 100;
 
                 // DEBUG: control values coming from controller
-                ESP_LOGI(TAG, "%4d, %4d, %4d, %4d, %4d\n", rx_control_msg->drive, rx_control_msg->steering, rx_control_msg->boom, rx_control_msg->turret, rx_control_msg->hook);
+                // ESP_LOGI(TAG, "Dr %4d, St %2d, Bm %4d, Tr %4d, Hk %2d\n", rx_control_msg->drive, rx_control_msg->steering, rx_control_msg->boom, rx_control_msg->turret, rx_control_msg->hook);
 
                 // int err = sendto(sock, rx_buffer, len, 0, (struct sockaddr *)&sourceAddr, sizeof(sourceAddr));
                 // if (err < 0) {
@@ -283,14 +284,15 @@ void wifi_init_softap()
              ESP_WIFI_SSID, ESP_WIFI_PASS, ESP_WIFI_CHANNEL);
 
     // start server
-    xTaskCreate(udp_server_task, "udp_server", 4096, NULL, 5, NULL);
+    xTaskCreate(udp_server_task, "udp_server", 4096 * 2, NULL, 5, NULL);
 
 }
 
 
 static void check_battery() {
+    float batt_v = 0;
     while (true) {
-        float batt_v = adc1_get_raw(BATT_VOL) * 3.9 / 1420.0;
+        batt_v = adc1_get_raw(BATT_VOL) * 11.4 / 1075.0;
         ESP_LOGI(TAG, "Battery Voltage: %1.2fv", batt_v);
         if (batt_v < (3.8 * 4.0)) {
             // Low Battery Warning
@@ -312,7 +314,7 @@ void app_main() {
     init_motors();
 
     // Battery checker
-    xTaskCreate(check_battery, "battery_checker", 256, NULL, 4, NULL);
+    xTaskCreate(check_battery, "bat_checker", 2048, NULL, tskIDLE_PRIORITY, NULL);
 
     // initial state
     led_color(700, 600, 0);
@@ -326,27 +328,31 @@ void app_main() {
     ESP_ERROR_CHECK(ret);
     wifi_init_softap();
 
+    rx_control_msg = rx_buffer;
+
     while (1) {
+        // ESP_LOGI(TAG, "Dr %4d, St %2d, Bm %4d, Tr %4d, Hk %2d\n", control_drive.value, control_steering.value, control_boom.value, control_turret.value, control_hook.target);
+
         // Slew controls
-        slew_control(control_drive, rx_control_msg->drive);
-        slew_control(control_turret, rx_control_msg->turret);
-        slew_control(control_boom, rx_control_msg->boom);
-        rate_control(control_hook);
+        slew_control(&control_drive, rx_control_msg->drive);
+        slew_control(&control_boom, rx_control_msg->boom);
+        slew_control(&control_turret, rx_control_msg->turret);
+        rate_control(&control_hook);
 
         // Update Motor Controls
-        set_motor(motor_drive, control_drive.value);
+        set_motor(motor_drive, -control_drive.value);
         set_motor(motor_boom, control_boom.value);
         set_motor(motor_hook, control_hook.rate);
 
         // (stepper)
-        if (abs(control_turret.value) > 10) {
+        if (abs(control_turret.value) > 0) {
             // enable pwm signal
             ledc_set_duty(LEDC_HIGH_SPEED_MODE, LEDC_TIMER_0, (1<<4));
             ledc_update_duty(LEDC_HIGH_SPEED_MODE, LEDC_CHANNEL_0);
 
             // set frequency
-            ledc_set_freq(LEDC_HIGH_SPEED_MODE, LEDC_TIMER_0, abs(control_boom.value) + 10);
-            gpio_set_level(MOTOR_STEPPER_DIR, control_boom.value > 0);
+            ledc_set_freq(LEDC_HIGH_SPEED_MODE, LEDC_TIMER_0, abs(control_turret.value) + 10);
+            gpio_set_level(MOTOR_STEPPER_DIR, control_boom.value < 0);
         } else {
             // disable pwm signal
             ledc_set_duty(LEDC_HIGH_SPEED_MODE, LEDC_TIMER_0, 0);

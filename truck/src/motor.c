@@ -1,29 +1,29 @@
 #include "motor.h"
 #include "io_config.h"
 
-MOTOR_PERIF motor_turret = {
+MOTOR_PERIF motor_drive = {
     .mcpwm_unit = MCPWM_UNIT_0,
     .mcpwm_pin_a = MCPWM0A,
     .mcpwm_pin_b = MCPWM0B,
     .timer = MCPWM_TIMER_0,
-    .gpio_a = MOTOR_TURRET_A,
-    .gpio_b = MOTOR_TURRET_B,
+    .gpio_a = MOTOR_DRIVE_A,
+    .gpio_b = MOTOR_DRIVE_B,
 };
 
 MOTOR_PERIF motor_boom = {
     .mcpwm_unit = MCPWM_UNIT_0,
-    .mcpwm_pin_a = MCPWM1A,
-    .mcpwm_pin_b = MCPWM1B,
-    .timer = MCPWM_TIMER_0,
+    .mcpwm_pin_a = MCPWM0A,
+    .mcpwm_pin_b = MCPWM0B,
+    .timer = MCPWM_TIMER_1,
     .gpio_a = MOTOR_BOOM_A,
     .gpio_b = MOTOR_BOOM_B,
 };
 
 MOTOR_PERIF motor_hook = {
     .mcpwm_unit = MCPWM_UNIT_0,
-    .mcpwm_pin_a = MCPWM2A,
-    .mcpwm_pin_b = MCPWM2B,
-    .timer = MCPWM_TIMER_0,
+    .mcpwm_pin_a = MCPWM0A,
+    .mcpwm_pin_b = MCPWM0B,
+    .timer = MCPWM_TIMER_2,
     .gpio_a = MOTOR_HOOK_A,
     .gpio_b = MOTOR_HOOK_B,
 };
@@ -48,7 +48,7 @@ void _init_single_motor(MOTOR_PERIF motor) {
 void init_motors() {
     _init_single_motor(motor_boom);
     _init_single_motor(motor_hook);
-    _init_single_motor(motor_turret);
+    _init_single_motor(motor_drive);
 }
 
 

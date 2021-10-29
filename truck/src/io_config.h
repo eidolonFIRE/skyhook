@@ -3,8 +3,8 @@
 #define MOTOR_STEPPER_STEP 26
 #define MOTOR_STEPPER_DIR 27
 
-#define MOTOR_TURRET_A 19
-#define MOTOR_TURRET_B 18
+#define MOTOR_DRIVE_A 19
+#define MOTOR_DRIVE_B 18
 
 #define MOTOR_BOOM_A 5
 #define MOTOR_BOOM_B 17
