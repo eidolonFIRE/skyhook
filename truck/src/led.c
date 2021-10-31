@@ -1,10 +1,12 @@
+#include <sys/param.h>
+
 #include "led.h"
 #include "io_config.h"
 
 
-LED_t led_red = {LEDRED, LEDC_CHANNEL_0};
-LED_t led_green = {LEDGREEN, LEDC_CHANNEL_1};
-LED_t led_blue = {LEDBLUE, LEDC_CHANNEL_2};
+LED_t led_red = {LEDRED, LEDC_CHANNEL_1};
+LED_t led_green = {LEDGREEN, LEDC_CHANNEL_2};
+LED_t led_blue = {LEDBLUE, LEDC_CHANNEL_3};
 
 
 void setup_led(LED_t led) {
@@ -41,9 +43,10 @@ void init_leds() {
 }
 
 void set_led_duty(LED_t led, u_int32_t duty) {
-    ledc_set_duty(LEDC_HIGH_SPEED_MODE, led.pwm_channel, 8191 * duty / 1000);
+    ledc_set_duty(LEDC_HIGH_SPEED_MODE, led.pwm_channel, 4095 * duty / 1000);
     ledc_update_duty(LEDC_HIGH_SPEED_MODE, led.pwm_channel);
 }
+
 
 /* 
     Red, Green, Blue values on scale 0 - 1000 

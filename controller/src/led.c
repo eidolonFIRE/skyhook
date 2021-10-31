@@ -40,7 +40,7 @@ void init_leds() {
 }
 
 void set_led_duty(LED_t led, u_int32_t duty) {
-    ledc_set_duty(LEDC_HIGH_SPEED_MODE, led.pwm_channel, 8191 * duty / 1000);
+    ledc_set_duty(LEDC_HIGH_SPEED_MODE, led.pwm_channel, 4095 * duty / 1000);
     ledc_update_duty(LEDC_HIGH_SPEED_MODE, led.pwm_channel);
 }
 

@@ -8,11 +8,12 @@
 int prev_x = 0;
 int prev_y = 0;
 
-int center_x = 1190;
-int center_y = 1260;
+int center_x = 1200;
+int center_y = 1400;
 
 // square deadzone half side length
-#define DEADZONE 40
+#define DEADZONE_X 50
+#define DEADZONE_Y 40
 #define THRESH 5
 
 
@@ -31,10 +32,10 @@ bool poll_joystick(int *x, int *y) {
 
 
     // calibrate values
-    int temp_x = -(raw_x - center_x) * (1000 + DEADZONE) / center_x;
-    *x = (temp_x > 0) ? MAX(0, temp_x - DEADZONE) : MIN(0, temp_x + DEADZONE);
-    int temp_y = (raw_y - center_y) * (1000 + DEADZONE) / center_y;
-    *y = (temp_y > 0) ? MAX(0, temp_y - DEADZONE) : MIN(0, temp_y + DEADZONE);
+    int temp_x = -(raw_x - center_x) * (1000 + DEADZONE_X) / center_x;
+    *x = (temp_x > 0) ? MAX(0, temp_x - DEADZONE_X) : MIN(0, temp_x + DEADZONE_X);
+    int temp_y = (raw_y - center_y) * (1000 + DEADZONE_Y) / center_y;
+    *y = (temp_y > 0) ? MAX(0, temp_y - DEADZONE_Y) : MIN(0, temp_y + DEADZONE_Y);
 
     // printf("%4d\t%4d\t:\t%4d\t%4d \n", raw_x, raw_y, *x, *y);
 

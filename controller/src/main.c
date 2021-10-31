@@ -47,7 +47,13 @@ static EventGroupHandle_t wifi_event_group;
 #define WIFI_CONNECTED_BIT BIT0
 #define WIFI_UPDATE BIT3
 
-
+typedef enum {
+    LOW_BATT = 0,
+    WAITING,
+    CONNECTED,
+    DRIVING,
+    LIFTING,
+} STATUS_t;
 
 typedef struct {
     int32_t drive;
@@ -65,7 +71,21 @@ int wheel = 0;
 int wheel_prev = 0;
 
 bool flag_update_msg = false;
+STATUS_t cur_status = WAITING;
 
+
+void set_status(STATUS_t new_status) {
+    if (cur_status == LOW_BATT || new_status == LOW_BATT) {
+        led_color(800, 0, 0);
+    } else if (new_status == WAITING) {
+        led_color(700, 600, 0);
+    } else if (new_status == CONNECTED || new_status == DRIVING) {
+        led_color(0, 300, 0);
+    } else if (new_status == LIFTING) {
+        led_color(0, 300, 800);
+    }
+    cur_status = new_status;
+}
 
 
 
@@ -93,7 +113,7 @@ static void udp_client_task(void *pvParameters)
         }
         ESP_LOGI(TAG, "Socket created");
 
-        led_color(0, 300, 0);
+        set_status(CONNECTED);
 
         while (1) {
             flag_update_msg = false;
@@ -104,7 +124,7 @@ static void udp_client_task(void *pvParameters)
 
             if (gpio_get_level(MODE_SWITCH)) {
                 // driving mode
-                led_color(0, 300, 500);
+                set_status(DRIVING);
                 control_msg.drive = joystick_y;
                 control_msg.steering = wheel - wheel_prev;
                 control_msg.turret = 0;
@@ -112,7 +132,7 @@ static void udp_client_task(void *pvParameters)
                 control_msg.hook = 0;
             } else {
                 // turret mode
-                led_color(0, 300, 0);
+                set_status(LIFTING);
                 control_msg.drive = 0;
                 control_msg.steering = 0;
                 control_msg.turret = joystick_x;
@@ -148,9 +168,8 @@ static void udp_client_task(void *pvParameters)
             
         }
 
-        led_color(800, 0, 0);
-
         if (sock != -1) {
+            set_status(WAITING);
             ESP_LOGE(TAG, "Shutting down socket and restarting...");
             shutdown(sock, 0);
             close(sock);
@@ -158,7 +177,6 @@ static void udp_client_task(void *pvParameters)
     }
     vTaskDelete(NULL);
 }
-
 
 
 static esp_err_t wifi_event_handler(void *ctx, system_event_t *event)
@@ -185,7 +203,6 @@ static esp_err_t wifi_event_handler(void *ctx, system_event_t *event)
     }
     return ESP_OK;
 }
-
 
 
 void wifi_init_sta()
@@ -218,15 +235,15 @@ void wifi_init_sta()
 
 static void IRAM_ATTR gpio_isr_handler(void *arg)
 {
-    // flag_update_msg = true;
     uint32_t gpio_num = (uint32_t) arg;
     xQueueSendFromISR(gpio_evt_queue, &gpio_num, NULL);
 }
 
+
 static void gpio_itr_mode(void* arg)
 {
     uint32_t io_num;
-    for(;;) {
+    for (;;) {
         if (xQueueReceive(gpio_evt_queue, &io_num, portMAX_DELAY)) {
             flag_update_msg = true;
             // printf("GPIO[%d] intr, val: %d\n", io_num, gpio_get_level(io_num));
@@ -234,17 +251,18 @@ static void gpio_itr_mode(void* arg)
     }
 }
 
+
 static void check_battery() {
     float batt_v = 0;
     while (true) {
         batt_v = adc1_get_raw(BATT_VOL) * 3.9 / 1420.0;
         ESP_LOGI(TAG, "Battery Voltage: %1.2fv", batt_v);
-        if (batt_v < (3.8)) {
+        if (batt_v < 3.75) {
             // Low Battery Warning
-            led_color(800, 0, 0);
+            set_status(LOW_BATT);
         }
         // seconds * 100
-        vTaskDelay(120 * 100);
+        vTaskDelay(60 * 100);
     }
 }
 
@@ -253,8 +271,7 @@ void app_main()
 {
     init_leds();
 
-    // initial state
-    led_color(700, 600, 0);
+    set_status(WAITING);
 
     setup_adc(X_AXIS);
     setup_adc(Y_AXIS);

@@ -28,10 +28,20 @@
 #include "io_config.h"
 #include "motor.h"
 #include "led.h"
+#include "servo.h"
+#include "stepper.h"
 
 #define TAG "app ===== "
 
 static EventGroupHandle_t s_wifi_event_group;
+
+typedef enum {
+    LOW_BATT = 0,
+    WAITING,
+    CONNECTED,
+    DRIVING,
+    LIFTING,
+} STATUS_t;
 
 typedef struct {
     int32_t value;
@@ -47,10 +57,10 @@ typedef struct {
     int32_t max_rate;
 } CONTROL_RATE_t;
 
-CONTROL_t control_drive     = {  0, -1000,  50, 1000};
-CONTROL_t control_steering  = {240,   180,   0,  300}; // servo
-CONTROL_t control_turret    = {  0, -1500,  20, 1500}; // stepper
-CONTROL_t control_boom      = {  0, -1000, 100, 1000};
+CONTROL_t control_drive     = {  0, -1000,  30, 1000};
+CONTROL_t control_steering  = {240,   160,   0,  350}; // servo
+CONTROL_t control_turret    = {  0, -1500,  10, 1500}; // stepper
+CONTROL_t control_boom      = {  0, -1000,  50, 1000};
 CONTROL_RATE_t control_hook = {  0,     0,   0, 1000};
 
 struct {
@@ -62,6 +72,9 @@ struct {
 } *rx_control_msg;
 
 char rx_buffer[1024];
+STATUS_t cur_status = WAITING;
+float batt_voltage = 0;
+
 
 void clamp_control(CONTROL_t *control) {
     control->value = MIN(control->max, MAX(control->min, control->value));
@@ -82,80 +95,31 @@ void rate_control(CONTROL_RATE_t *control) {
     control->value += control->rate;
 
     // update velocity
-    int32_t target_rate = (control->target - control->rate) / 10;
+    int32_t target_rate = (control->target - control->value) / 20;
     control->rate = MIN(control->max_rate, MAX(-control->max_rate, target_rate));
 }
+
+
+
+
+void set_status(STATUS_t new_status) {
+    if (cur_status == LOW_BATT || new_status == LOW_BATT) {
+        led_color(800, 0, 0);
+    } else if (new_status == WAITING) {
+        led_color(700, 600, 0);
+    } else if (new_status == CONNECTED) {
+        led_color(0, 300, 0);
+    }
+    cur_status = new_status;
+}
+
+
 
 
 void init_adc(adc1_channel_t adc_channel) {
     adc1_config_width(ADC_WIDTH_BIT_12);
     adc1_config_channel_atten(adc_channel, ADC_ATTEN_DB_11);
 }
-
-void init_stepper() {
-
-    // PWM stepper motor (led perif)
-    ledc_timer_config_t ledc_timer_mtr = {
-        .speed_mode       = LEDC_HIGH_SPEED_MODE,
-        .timer_num        = LEDC_TIMER_0,
-        .duty_resolution  = LEDC_TIMER_8_BIT,
-        .freq_hz          = 100,
-        .clk_cfg          = LEDC_AUTO_CLK
-    };
-    ESP_ERROR_CHECK(ledc_timer_config(&ledc_timer_mtr));
-
-    // Prepare and then apply the LEDC PWM channel configuration
-    ledc_channel_config_t ledc_channel_mtr = {
-        .speed_mode     = LEDC_HIGH_SPEED_MODE,
-        .channel        = LEDC_CHANNEL_0,
-        .timer_sel      = LEDC_TIMER_0,
-        .intr_type      = LEDC_INTR_DISABLE,
-        .gpio_num       = MOTOR_STEPPER_STEP,
-        .duty           = 0,
-        .hpoint         = 0
-    };
-    ESP_ERROR_CHECK(ledc_channel_config(&ledc_channel_mtr));
-
-    // setup IO for directional control
-    gpio_config_t io_conf = {
-        .intr_type = GPIO_INTR_DISABLE,
-        .mode = GPIO_MODE_OUTPUT,
-        .pin_bit_mask = 1ULL << MOTOR_STEPPER_DIR,
-        .pull_down_en = 0,
-        .pull_up_en = 0,
-    };
-    gpio_config(&io_conf);
-}
-
-
-void init_servo() {
-    // LED (servo)
-    ledc_timer_config_t ledc_timer_servo = {
-        .speed_mode       = LEDC_HIGH_SPEED_MODE,
-        .timer_num        = LEDC_TIMER_1,
-        .duty_resolution  = LEDC_TIMER_12_BIT,
-        .freq_hz          = 50,
-        .clk_cfg          = LEDC_AUTO_CLK
-    };
-    ESP_ERROR_CHECK(ledc_timer_config(&ledc_timer_servo));
-
-    // Prepare and then apply the LEDC PWM channel configuration
-    ledc_channel_config_t ledc_channel_servo = {
-        .speed_mode     = LEDC_HIGH_SPEED_MODE,
-        .channel        = LEDC_CHANNEL_1,
-        .timer_sel      = LEDC_TIMER_1,
-        .intr_type      = LEDC_INTR_DISABLE,
-        .gpio_num       = MOTOR_STEERING,
-        .duty           = 240,
-        .hpoint         = 0
-    };
-    ESP_ERROR_CHECK(ledc_channel_config(&ledc_channel_servo));
-}
-
-
-
-
-
 
 
 static void udp_server_task(void *pvParameters)
@@ -165,7 +129,6 @@ static void udp_server_task(void *pvParameters)
     int ip_protocol;
 
     while (1) {
-
         struct sockaddr_in destAddr;
         destAddr.sin_addr.s_addr = htonl(INADDR_ANY);
         destAddr.sin_family = AF_INET;
@@ -173,7 +136,6 @@ static void udp_server_task(void *pvParameters)
         addr_family = AF_INET;
         ip_protocol = IPPROTO_IP;
         inet_ntoa_r(destAddr.sin_addr, addr_str, sizeof(addr_str) - 1);
-
 
         int sock = socket(addr_family, SOCK_DGRAM, ip_protocol);
         if (sock < 0) {
@@ -210,8 +172,8 @@ static void udp_server_task(void *pvParameters)
                 }
 
                 // Apply here because it's a delta value
-                add_control(&control_steering, rx_control_msg->steering);
-                control_hook.target += rx_control_msg->hook * 100;
+                add_control(&control_steering, -rx_control_msg->steering);
+                control_hook.target -= rx_control_msg->hook * 1000;
 
                 // DEBUG: control values coming from controller
                 // ESP_LOGI(TAG, "Dr %4d, St %2d, Bm %4d, Tr %4d, Hk %2d\n", rx_control_msg->drive, rx_control_msg->steering, rx_control_msg->boom, rx_control_msg->turret, rx_control_msg->hook);
@@ -242,19 +204,20 @@ static esp_err_t event_handler(void *ctx, system_event_t *event)
         ESP_LOGI(TAG, "station:"MACSTR" join, AID=%d",
                  MAC2STR(event->event_info.sta_connected.mac),
                  event->event_info.sta_connected.aid);
-        led_color(0, 300, 0);
+        set_status(CONNECTED);
         break;
     case SYSTEM_EVENT_AP_STADISCONNECTED:
         ESP_LOGI(TAG, "station:"MACSTR"leave, AID=%d",
                  MAC2STR(event->event_info.sta_disconnected.mac),
                  event->event_info.sta_disconnected.aid);
-        led_color(800, 600, 0);
+        set_status(WAITING);
         break;
     default:
         break;
     }
     return ESP_OK;
 }
+
 
 void wifi_init_softap()
 {
@@ -285,21 +248,19 @@ void wifi_init_softap()
 
     // start server
     xTaskCreate(udp_server_task, "udp_server", 4096 * 2, NULL, 5, NULL);
-
 }
 
 
 static void check_battery() {
-    float batt_v = 0;
     while (true) {
-        batt_v = adc1_get_raw(BATT_VOL) * 11.4 / 1075.0;
-        ESP_LOGI(TAG, "Battery Voltage: %1.2fv", batt_v);
-        if (batt_v < (3.8 * 4.0)) {
+        batt_voltage = adc1_get_raw(BATT_VOL) * 11.4 / 1075.0;
+        ESP_LOGI(TAG, "Battery Voltage: %1.2fv", batt_voltage);
+        if (batt_voltage < (3.8 * 4.0)) {
             // Low Battery Warning
-            led_color(800, 0, 0);
+            set_status(LOW_BATT);
         }
         // seconds * 100
-        vTaskDelay(120 * 100);
+        vTaskDelay(60 * 100);
     }
 }
 
@@ -316,8 +277,7 @@ void app_main() {
     // Battery checker
     xTaskCreate(check_battery, "bat_checker", 2048, NULL, tskIDLE_PRIORITY, NULL);
 
-    // initial state
-    led_color(700, 600, 0);
+    set_status(WAITING);
 
     // Setup Wifi / Server
     esp_err_t ret = nvs_flash_init();
@@ -340,28 +300,16 @@ void app_main() {
         rate_control(&control_hook);
 
         // Update Motor Controls
-        set_motor(motor_drive, -control_drive.value);
         set_motor(motor_boom, control_boom.value);
         set_motor(motor_hook, control_hook.rate);
 
-        // (stepper)
-        if (abs(control_turret.value) > 0) {
-            // enable pwm signal
-            ledc_set_duty(LEDC_HIGH_SPEED_MODE, LEDC_TIMER_0, (1<<4));
-            ledc_update_duty(LEDC_HIGH_SPEED_MODE, LEDC_CHANNEL_0);
+        set_drive(control_drive.value);
 
-            // set frequency
-            ledc_set_freq(LEDC_HIGH_SPEED_MODE, LEDC_TIMER_0, abs(control_turret.value) + 10);
-            gpio_set_level(MOTOR_STEPPER_DIR, control_boom.value < 0);
-        } else {
-            // disable pwm signal
-            ledc_set_duty(LEDC_HIGH_SPEED_MODE, LEDC_TIMER_0, 0);
-            ledc_update_duty(LEDC_HIGH_SPEED_MODE, LEDC_CHANNEL_0);
-        }
+        // (stepper)
+        set_stepper(control_turret.value);
 
         // (servo)
-        ledc_set_duty(LEDC_HIGH_SPEED_MODE, LEDC_TIMER_1, control_steering.value);
-        ledc_update_duty(LEDC_HIGH_SPEED_MODE, LEDC_CHANNEL_1);
+        set_servo(control_steering.value);
 
         // Controls refresh rate
         vTaskDelay(20 / portTICK_PERIOD_MS);

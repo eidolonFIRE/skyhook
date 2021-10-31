@@ -8,5 +8,4 @@ typedef struct {
 
 
 void init_leds();
-void set_led_duty(LED_t led, uint32_t duty);
 void led_color(uint32_t red, uint32_t green, uint32_t blue);
