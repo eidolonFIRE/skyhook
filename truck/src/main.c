@@ -59,7 +59,7 @@ typedef struct {
 
 CONTROL_t control_drive     = {  0, -1000,  30, 1000};
 CONTROL_t control_steering  = {240,   160,   0,  350}; // servo
-CONTROL_t control_turret    = {  0, -1500,  10, 1500}; // stepper
+CONTROL_t control_turret    = {  0, -1000,  10, 1000}; // stepper
 CONTROL_t control_boom      = {  0, -1000,  50, 1000};
 CONTROL_RATE_t control_hook = {  0,     0,   0, 1000};
 

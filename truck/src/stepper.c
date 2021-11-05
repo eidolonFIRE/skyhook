@@ -41,7 +41,7 @@ void init_stepper() {
 
 
 void set_stepper(int32_t value) {
-    float curve = pow(abs(value) / 1000.0, 1.5);
+    float curve = pow(abs(value) / 1000.0 * 1.2, 1.5);
 
 
     if (abs(value) > 0) {
